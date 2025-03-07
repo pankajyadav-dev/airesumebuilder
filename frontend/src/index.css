@@ -1,0 +1,4 @@
+@import "tailwindcss";
+
+/* Import resume styles */
+@import './styles/resume.css';

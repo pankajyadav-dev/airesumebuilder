@@ -1,0 +1,139 @@
+/* Resume Styles */
+.resume {
+  font-family: 'Roboto', Arial, sans-serif;
+  line-height: 1.6;
+  color: #333;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.resume-preview {
+  font-family: 'Roboto', Arial, sans-serif;
+  line-height: 1.6;
+  color: #333;
+}
+
+.resume-preview h1 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #2563eb; /* blue-600 */
+}
+
+.resume-preview h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937; /* gray-800 */
+  border-bottom: 1px solid #e5e7eb; /* gray-200 */
+  padding-bottom: 5px;
+  margin: 20px 0 10px 0;
+}
+
+.resume-preview h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 15px 0 5px 0;
+  color: #374151; /* gray-700 */
+}
+
+.resume-preview p {
+  margin-bottom: 10px;
+}
+
+.resume-preview ul {
+  padding-left: 20px;
+  margin-bottom: 15px;
+}
+
+.resume-preview ul li {
+  margin-bottom: 5px;
+}
+
+.resume .header {
+  text-align: center;
+  margin-bottom: 25px;
+}
+
+.resume .header h1 {
+  font-size: 28px;
+  margin-bottom: 8px;
+  font-weight: 700;
+  color: #2563eb; /* blue-600 */
+}
+
+.resume .header p {
+  font-size: 14px;
+  margin: 0;
+  color: #4b5563; /* gray-600 */
+}
+
+.resume .section {
+  margin-bottom: 25px;
+}
+
+.resume .section h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937; /* gray-800 */
+  border-bottom: 1px solid #e5e7eb; /* gray-200 */
+  padding-bottom: 5px;
+  margin-bottom: 15px;
+}
+
+.resume .job h3, 
+.resume .education h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: #374151; /* gray-700 */
+}
+
+.resume .company, 
+.resume p.institution {
+  font-size: 14px;
+  font-style: italic;
+  color: #6b7280; /* gray-500 */
+  margin-bottom: 8px;
+}
+
+.resume ul {
+  padding-left: 20px;
+  margin-bottom: 15px;
+}
+
+.resume ul li {
+  margin-bottom: 5px;
+}
+
+.resume .skills-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  list-style-type: none;
+  padding: 0;
+}
+
+.resume .skills-list li {
+  background-color: #f3f4f6; /* gray-100 */
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+  color: #4b5563; /* gray-600 */
+}
+
+/* Media query for print */
+@media print {
+  .resume {
+    padding: 0;
+  }
+  
+  .resume .header h1 {
+    color: #000;
+  }
+  
+  .resume .section h2 {
+    color: #000;
+    border-bottom-color: #000;
+  }
+} 
