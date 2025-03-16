@@ -26,27 +26,6 @@ export default {
       spacing: {
         '128': '32rem',
       },
-      animation: {
-        'slideUp': 'slideUp 0.5s ease-out forwards',
-        'fadeIn': 'fadeIn 0.5s ease-out forwards',
-        'pulse-fast': 'pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'bounce-slow': 'bounce 2s infinite',
-      },
-      keyframes: {
-        slideUp: {
-          '0%': { transform: 'translateY(100%)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        },
-        fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
-        },
-      },
-      boxShadow: {
-        'inner-lg': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)',
-        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        'card-hover': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-      },
     },
   },
   plugins: [
