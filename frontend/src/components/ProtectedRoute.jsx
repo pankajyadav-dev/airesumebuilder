@@ -12,8 +12,12 @@ function ProtectedRoute({ children }) {
   // Show loading indicator while authentication status is being checked
   if (loading || !authChecked) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex flex-col justify-center items-center h-64">
+        <div className="relative">
+          <div className="w-16 h-16 border-t-4 border-blue-600 border-solid rounded-full animate-spin"></div>
+          <div className="w-16 h-16 border-t-4 border-indigo-400 border-solid rounded-full animate-ping absolute top-0 opacity-30"></div>
+        </div>
+        <p className="mt-4 text-gray-600 animate-pulse">Verifying authentication...</p>
       </div>
     );
   }
