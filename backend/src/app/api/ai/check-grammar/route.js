@@ -3,11 +3,11 @@ import connectDB from '../../../../lib/mongodb';
 import Resume from '../../../../models/resumeModel';
 import { getServerAuthSession } from '../../../../middleware/auth';
 import { corsMiddleware, corsHandler } from '../../../../middleware/cors';
-import axios from 'axios';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 async function checkGrammarHandler(request) {
   try {
-    const session = getServerAuthSession();
+    const session = await getServerAuthSession(request);
     
     if (!session) {
       return NextResponse.json(
@@ -52,16 +52,16 @@ async function checkGrammarHandler(request) {
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_gemini_api_key') {
       const mockAnalysisResult = {
         score: 85,
-        errors: [
+        suggestions: [
           {
-            original: "I am responsible for managing team",
-            correction: "I am responsible for managing the team",
-            explanation: "Missing article 'the' before 'team'"
+            text: "I am responsible for managing team",
+            issue: "Missing article before 'team'",
+            suggestion: "Consider adding 'the' or 'a' before 'team'"
           },
           {
-            original: "We completed the project under budget",
-            correction: "We completed the project under budget",
-            explanation: "No error detected"
+            text: "Led team of 5 developers",
+            issue: "Missing article before 'team'",
+            suggestion: "Consider adding 'a' before 'team'"
           }
         ],
         styleRecommendations: [
@@ -83,60 +83,64 @@ async function checkGrammarHandler(request) {
       });
     }
     
-    // Prepare prompt for Gemini API
-    const prompt = `Check the following resume text for grammar and spelling errors:
+    // Simplified prompt for Gemini API
+    const prompt = `Review this resume text for grammar and spelling issues:
     
     ${textToCheck}
     
-    Please provide:
-    1. An overall grammar score from 0-100
-    2. A list of grammar and spelling errors found
-    3. Suggested corrections for each error
-    4. General writing style recommendations
+    Provide a JSON response with:
+    - score: grammar score from 0-100
+    - suggestions: array of objects with {text, issue, suggestion} where text is the problematic text, issue describes the problem, and suggestion provides guidance on how to fix it
+    - styleRecommendations: array of writing style improvement tips
     
-    Format your response as JSON with the following structure:
-    {
-      "score": number,
-      "errors": [
-        {
-          "original": string,
-          "correction": string,
-          "explanation": string
-        }
-      ],
-      "styleRecommendations": [string]
-    }`;
+    IMPORTANT: Do NOT provide direct corrections or rewrite the text. Only point out issues and give suggestions for improvement.`;
     
-    // Call Gemini API
-    const response = await axios.post(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
-      {
-        contents: [{ parts: [{ text: prompt }] }]
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': process.env.GEMINI_API_KEY
+    try {
+      // Initialize the Google Generative AI client
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      
+      // Get the model
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-2.0-flash",
+        generationConfig: {
+          temperature: 0.1,
+          topP: 0.8,
+          maxOutputTokens: 2048,
         }
+      });
+      
+      // Generate content
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      let generatedContent = response.text();
+      
+      // Extract the JSON part if needed
+      if (generatedContent.includes('```json')) {
+        generatedContent = generatedContent.split('```json')[1].split('```')[0].trim();
+      } else if (generatedContent.includes('```')) {
+        generatedContent = generatedContent.split('```')[1].split('```')[0].trim();
       }
-    );
-    
-    // Extract the generated content from Gemini API response
-    const generatedContent = response.data.candidates[0].content.parts[0].text;
-    
-    // Parse the JSON response
-    const analysisResult = JSON.parse(generatedContent);
-    
-    // Update the resume with the grammar score if resumeId was provided
-    if (resume) {
-      resume.metrics.grammarScore = analysisResult.score;
-      await resume.save();
+      
+      // Parse the JSON response
+      const analysisResult = JSON.parse(generatedContent);
+      
+      // Update the resume with the grammar score if resumeId was provided
+      if (resume) {
+        resume.metrics.grammarScore = analysisResult.score;
+        await resume.save();
+      }
+      
+      return NextResponse.json({
+        success: true,
+        analysis: analysisResult
+      });
+    } catch (error) {
+      console.error('Gemini API error:', error);
+      return NextResponse.json(
+        { success: false, message: 'Failed to connect to Gemini API' },
+        { status: 500 }
+      );
     }
-    
-    return NextResponse.json({
-      success: true,
-      analysis: analysisResult
-    });
   } catch (error) {
     console.error('Grammar check error:', error);
     return NextResponse.json(

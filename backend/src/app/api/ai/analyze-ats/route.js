@@ -3,11 +3,11 @@ import connectDB from '../../../../lib/mongodb';
 import Resume from '../../../../models/resumeModel';
 import { getServerAuthSession } from '../../../../middleware/auth';
 import { corsMiddleware, corsHandler } from '../../../../middleware/cors';
-import axios from 'axios';
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 async function analyzAtsHandler(request) {
   try {
-    const session = getServerAuthSession();
+    const session = await getServerAuthSession(request);
     
     if (!session) {
       return NextResponse.json(
@@ -47,28 +47,18 @@ async function analyzAtsHandler(request) {
       textToAnalyze = resume.content;
     }
     
-    // Prepare prompt for Gemini API
-    const prompt = `Analyze this resume for ATS (Applicant Tracking System) optimization:
+    // Simplified prompt for Gemini API
+    const prompt = `Analyze this resume for ATS optimization:
     
     ${textToAnalyze}
     
     ${jobDescription ? `For this job description: ${jobDescription}` : ''}
     
-    Please provide:
-    1. An overall ATS score from 0-100
-    2. Key issues that might prevent the resume from passing ATS filters
-    3. Specific recommendations to improve ATS compatibility
-    4. Important keywords that should be included based on the job description
-    5. Format and structure recommendations
-    
-    Format your response as JSON with the following structure:
-    {
-      "score": number,
-      "issues": [string],
-      "recommendations": [string],
-      "keywords": [string],
-      "formatRecommendations": [string]
-    }`;
+    Provide a JSON response with:
+    - score: number from 0-100
+    - issues: array of key issues
+    - recommendations: array of improvements
+    - keywords: array of missing keywords`;
     
     // Mock response for development/testing if Gemini API key is not available
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_gemini_api_key') {
@@ -89,11 +79,6 @@ async function analyzAtsHandler(request) {
           "stakeholder communication",
           "agile methodology",
           "cross-functional teams"
-        ],
-        formatRecommendations: [
-          "Use standard section headings",
-          "Avoid tables, headers/footers, and columns",
-          "Use standard bullet points instead of custom symbols"
         ]
       };
       
@@ -109,36 +94,52 @@ async function analyzAtsHandler(request) {
       });
     }
     
-    // Call Gemini API
-    const response = await axios.post(
-      'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
-      {
-        contents: [{ parts: [{ text: prompt }] }]
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': process.env.GEMINI_API_KEY
+    try {
+      // Initialize the Google Generative AI client
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+      
+      // Get the model
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-2.0-flash",
+        generationConfig: {
+          temperature: 0.2,
+          topP: 0.9,
+          maxOutputTokens: 2048,
         }
+      });
+      
+      // Generate content
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      let generatedContent = response.text();
+      
+      // Extract the JSON part if needed
+      if (generatedContent.includes('```json')) {
+        generatedContent = generatedContent.split('```json')[1].split('```')[0].trim();
+      } else if (generatedContent.includes('```')) {
+        generatedContent = generatedContent.split('```')[1].split('```')[0].trim();
       }
-    );
-    
-    // Extract the generated content from Gemini API response
-    const generatedContent = response.data.candidates[0].content.parts[0].text;
-    
-    // Parse the JSON response
-    const analysisResult = JSON.parse(generatedContent);
-    
-    // Update the resume with the ATS score if resumeId was provided
-    if (resume) {
-      resume.metrics.atsScore = analysisResult.score;
-      await resume.save();
+      
+      // Parse the JSON response
+      const analysisResult = JSON.parse(generatedContent);
+      
+      // Update the resume with the ATS score if resumeId was provided
+      if (resume) {
+        resume.metrics.atsScore = analysisResult.score;
+        await resume.save();
+      }
+      
+      return NextResponse.json({
+        success: true,
+        analysis: analysisResult
+      });
+    } catch (error) {
+      console.error('Gemini API error:', error);
+      return NextResponse.json(
+        { success: false, message: 'Failed to connect to Gemini API' },
+        { status: 500 }
+      );
     }
-    
-    return NextResponse.json({
-      success: true,
-      analysis: analysisResult
-    });
   } catch (error) {
     console.error('ATS analysis error:', error);
     return NextResponse.json(

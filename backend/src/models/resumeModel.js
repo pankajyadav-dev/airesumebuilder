@@ -26,12 +26,6 @@ const resumeSchema = new mongoose.Schema({
       max: 100,
       default: 0
     },
-    plagiarismScore: {
-      type: Number,
-      min: 0,
-      max: 100,
-      default: 0
-    },
     grammarScore: {
       type: Number,
       min: 0,

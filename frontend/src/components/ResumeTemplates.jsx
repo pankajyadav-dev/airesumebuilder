@@ -464,23 +464,45 @@ const templates = [
 
 function ResumeTemplates({ selectedTemplate, onSelectTemplate }) {
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <h2 className="text-xl font-semibold mb-4">Choose a Template</h2>
-      <p className="text-gray-600 mb-6">Select a template to get started with your resume. You can always change it later.</p>
+    <div className="bg-gradient-to-br from-white to-gray-50 shadow-lg rounded-xl p-8 border border-gray-100">
+      <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-4">Choose a Template</h2>
+      <p className="text-gray-600 mb-8">Select a template to get started with your resume. You can always change it later.</p>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {templates.map((template) => (
           <div 
             key={template.id}
-            className={`border rounded-lg overflow-hidden cursor-pointer transition-all hover:shadow-md ${
-              selectedTemplate === template.id ? 'ring-2 ring-blue-500 shadow-md' : ''
+            className={`border rounded-xl overflow-hidden cursor-pointer transition-all duration-300 transform hover:scale-105 hover:shadow-xl ${
+              selectedTemplate === template.id 
+                ? 'ring-2 ring-blue-500 shadow-lg scale-[1.02]' 
+                : 'hover:border-blue-200'
             }`}
             onClick={() => onSelectTemplate(template.id)}
           >
-            <div className="h-48 overflow-hidden bg-gray-50 border-b" dangerouslySetInnerHTML={{ __html: template.preview }} />
-            <div className="p-4">
-              <h3 className="font-medium text-gray-900">{template.name}</h3>
-              <p className="text-sm text-gray-500 mt-1">{template.description}</p>
+            <div className="h-56 overflow-hidden bg-white border-b relative">
+              <div dangerouslySetInnerHTML={{ __html: template.preview }} className="transform transition-transform duration-500 hover:scale-110 origin-top" />
+              {selectedTemplate === template.id && (
+                <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1 shadow-md animate-pulse">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+              )}
+            </div>
+            <div className="p-5 bg-gradient-to-br from-white to-gray-50">
+              <h3 className="font-semibold text-gray-900">{template.name}</h3>
+              <p className="text-sm text-gray-500 mt-2">{template.description}</p>
+              <div className="mt-3">
+                <button 
+                  className={`text-sm px-3 py-1 rounded-md transition-colors duration-200 ${
+                    selectedTemplate === template.id
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {selectedTemplate === template.id ? 'Selected' : 'Select'}
+                </button>
+              </div>
             </div>
           </div>
         ))}

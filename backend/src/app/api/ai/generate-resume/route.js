@@ -160,69 +160,21 @@ async function generateResumeHandler(request) {
       ? hasProfile.achievements.join('; ')
       : '';
     
-    // Enhanced prompt for Gemini API
-    const prompt = `Create a professional, ATS-optimized resume for a ${jobTitle} position${targetCompany ? ` at ${targetCompany}` : ''}${targetIndustry ? ` in the ${targetIndustry} industry` : ''}.
+    // Simplified prompt for Gemini API
+    const prompt = `Create an ATS-optimized HTML resume for ${user.name} applying for ${jobTitle} position${targetCompany ? ` at ${targetCompany}` : ''}${targetIndustry ? ` in ${targetIndustry}` : ''}.
 
-I need you to generate a complete resume in HTML format that will pass ATS systems and impress hiring managers. The resume should be tailored specifically for this job and company, highlighting relevant skills and experiences.
+Basic info: ${user.email}${hasProfile.personalDetails?.phone ? `, ${hasProfile.personalDetails.phone}` : ''}${hasProfile.personalDetails?.address ? `, ${hasProfile.personalDetails.address}` : ''}
 
-Candidate information:
-- Name: ${user.name}
-- Email: ${user.email}
-${hasProfile.personalDetails?.phone ? `- Phone: ${hasProfile.personalDetails.phone}` : ''}
-${hasProfile.personalDetails?.address ? `- Address: ${hasProfile.personalDetails.address}` : ''}
-${hasProfile.personalDetails?.website ? `- Website: ${hasProfile.personalDetails.website}` : ''}
-${hasProfile.personalDetails?.linkedIn ? `- LinkedIn: ${hasProfile.personalDetails.linkedIn}` : ''}
-${hasProfile.personalDetails?.github ? `- GitHub: ${hasProfile.personalDetails.github}` : ''}
+Experience: ${experienceText}
 
-${hasExperience ? `Work Experience:
-${hasProfile.experience.map(exp => `- Position: ${exp.position}
-  Company: ${exp.company}
-  Duration: ${new Date(exp.startDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'})} - ${exp.endDate ? new Date(exp.endDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}) : 'Present'}
-  Description: ${exp.description || 'Not provided'}`).join('\n\n')}` : ''}
+Education: ${educationText}
 
-${hasEducation ? `Education:
-${hasProfile.education.map(edu => `- Degree: ${edu.degree}
-  Field: ${edu.field}
-  Institution: ${edu.institution}
-  Duration: ${new Date(edu.startDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'})} - ${edu.endDate ? new Date(edu.endDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}) : 'Present'}
-  Description: ${edu.description || 'Not provided'}`).join('\n\n')}` : ''}
+Skills: ${skillsText}
 
-${hasSkills ? `Skills: ${skillsText}` : ''}
+${certificationsText ? `Certifications: ${certificationsText}` : ''}
+${achievementsText ? `Achievements: ${achievementsText}` : ''}
 
-${hasProfile.certifications && hasProfile.certifications.length > 0 ? `Certifications:
-${certificationsText}` : ''}
-
-${hasProfile.achievements && hasProfile.achievements.length > 0 ? `Achievements:
-${achievementsText}` : ''}
-
-Job Details:
-- Position: ${jobTitle}
-${targetCompany ? `- Company: ${targetCompany}` : ''}
-${targetIndustry ? `- Industry: ${targetIndustry}` : ''}
-
-Instructions:
-1. Create a professional HTML resume that is well-structured and visually appealing
-2. Start with a compelling professional summary that highlights the candidate's value proposition for this specific ${jobTitle} role${targetCompany ? ` at ${targetCompany}` : ''}
-3. Organize work experience in reverse chronological order with bullet points highlighting accomplishments and responsibilities relevant to the target position
-4. Include education section with degrees, institutions, and graduation dates
-5. Highlight relevant skills that match the job requirements
-6. Include additional sections (certifications, achievements) if they strengthen the application
-7. Use industry-specific keywords throughout the resume to pass ATS screening
-8. Create clean, semantic HTML that can be rendered properly in a rich text editor
-
-Your output should be valid HTML that renders as a complete, professional resume. Do not include any non-HTML text in your response, only the HTML code for the resume.
-
-The HTML should follow this structure and use these tags:
-- <div> for main container and sections
-- <h1> for name
-- <h2> for section headers
-- <h3> for subsection headers
-- <p> for paragraphs
-- <ul> and <li> for lists
-- <strong> or <b> for emphasis
-- Basic inline styling is acceptable for layout
-
-Ensure the resume is ATS-friendly by using standard section headings like "Professional Summary", "Experience", "Education", "Skills", etc IF THERE IS NOT COMPLETE INFORMATION OF USER IS ADDED THEN CREATE IT BY URESELF AND CREATE A standard resume for the same post.`;
+Create a professional HTML resume with standard sections (Summary, Experience, Education, Skills). Include relevant keywords for ATS optimization. Use semantic HTML tags.`;
     
     try {
       console.log('AI Resume API: Initializing Google Generative AI');

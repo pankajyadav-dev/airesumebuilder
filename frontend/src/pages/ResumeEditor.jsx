@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ResumeTemplates, { getTemplateHtml } from '../components/ResumeTemplates';
+import ShareEmailModal from '../components/ShareResume';
 import axios from 'axios';
 import { Editor } from '@tinymce/tinymce-react';
 
@@ -23,12 +24,12 @@ function ResumeEditor() {
   const [message, setMessage] = useState('');
   const [atsScore, setAtsScore] = useState(null);
   const [grammarScore, setGrammarScore] = useState(null);
-  const [plagiarismScore, setPlagiarismScore] = useState(null);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const [showTemplates, setShowTemplates] = useState(id === 'new');
   const [step, setStep] = useState(id === 'new' ? 1 : 2); // 1: Choose template, 2: Edit resume
   const [htmlMode, setHtmlMode] = useState(false);
   const [editorFailed, setEditorFailed] = useState(false);
+  const [showShareEmailModal, setShowShareEmailModal] = useState(false);
 
   useEffect(() => {
     if (id && id !== 'new') {
@@ -61,7 +62,6 @@ function ResumeEditor() {
       if (resume.metrics) {
         setAtsScore(resume.metrics.atsScore);
         setGrammarScore(resume.metrics.grammarScore);
-        setPlagiarismScore(resume.metrics.plagiarismScore);
       }
     } catch (err) {
       console.error('Error fetching resume:', err);
@@ -140,47 +140,57 @@ function ResumeEditor() {
           console.log('Generating fallback resume template');
           // Generate a fallback resume with placeholder content
           const fallbackContent = `
-<div class="resume">
-  <div class="header">
-    <h1>${user?.name || 'Your Name'}</h1>
-    <p>${user?.email || 'your.email@example.com'} | Phone: (123) 456-7890 | Location: City, State</p>
+<div class="resume" style="font-family: 'Roboto', Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #333; line-height: 1.5; background: #fff; box-shadow: 0 1px 5px rgba(0,0,0,0.1);">
+  <div class="header" style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #3b82f6;">
+    <h1 style="margin: 0 0 10px; font-size: 32px; color: #1e40af; font-weight: 700;">${user?.name || 'Your Name'}</h1>
+    <p style="margin: 0; color: #4b5563; font-size: 16px;">${user?.email || 'your.email@example.com'} | Phone: (123) 456-7890 | Location: City, State</p>
   </div>
   
-  <div class="section">
-    <h2>Professional Summary</h2>
-    <p>Experienced ${jobTitle} with a proven track record in ${targetIndustry || 'the industry'}. Skilled in problem-solving, team collaboration, and delivering high-quality results. Seeking to leverage my expertise at ${targetCompany || 'a forward-thinking company'}.</p>
+  <div class="section" style="margin-bottom: 25px;">
+    <h2 style="font-size: 22px; font-weight: 600; margin: 0 0 15px; padding-bottom: 8px; color: #1e40af; border-bottom: 1px solid #e5e7eb;">Professional Summary</h2>
+    <p style="margin: 0; font-size: 16px; color: #4b5563;">Experienced ${jobTitle} with a proven track record in ${targetIndustry || 'the industry'}. Skilled in problem-solving, team collaboration, and delivering high-quality results. Seeking to leverage my expertise at ${targetCompany || 'a forward-thinking company'}.</p>
   </div>
   
-  <div class="section">
-    <h2>Experience</h2>
-    <div class="job">
-      <h3>${jobTitle}</h3>
-      <p class="company">Previous Company | Jan 2020 - Present</p>
-      <ul>
-        <li>Successfully implemented key projects resulting in 20% efficiency improvement</li>
-        <li>Collaborated with cross-functional teams to deliver solutions on time and within budget</li>
-        <li>Recognized for outstanding performance and innovative approaches to problem-solving</li>
+  <div class="section" style="margin-bottom: 25px;">
+    <h2 style="font-size: 22px; font-weight: 600; margin: 0 0 15px; padding-bottom: 8px; color: #1e40af; border-bottom: 1px solid #e5e7eb;">Experience</h2>
+    <div class="job" style="margin-bottom: 20px;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+        <h3 style="font-size: 18px; font-weight: 600; margin: 0; color: #1f2937;">${jobTitle}</h3>
+        <span style="font-style: italic; color: #6b7280;">Jan 2020 - Present</span>
+      </div>
+      <p class="company" style="margin: 0 0 10px; font-weight: 500; color: #4b5563;">Previous Company</p>
+      <ul style="margin: 10px 0 0 20px; padding: 0; color: #4b5563;">
+        <li style="margin-bottom: 8px;">Successfully implemented key projects resulting in 20% efficiency improvement</li>
+        <li style="margin-bottom: 8px;">Collaborated with cross-functional teams to deliver solutions on time and within budget</li>
+        <li style="margin-bottom: 8px;">Recognized for outstanding performance and innovative approaches to problem-solving</li>
       </ul>
     </div>
   </div>
   
-  <div class="section">
-    <h2>Education</h2>
-    <div class="education">
-      <h3>Bachelor's Degree in Related Field</h3>
-      <p>University Name | Graduated: 2018</p>
+  <div class="section" style="margin-bottom: 25px;">
+    <h2 style="font-size: 22px; font-weight: 600; margin: 0 0 15px; padding-bottom: 8px; color: #1e40af; border-bottom: 1px solid #e5e7eb;">Education</h2>
+    <div class="education" style="margin-bottom: 15px;">
+      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+        <h3 style="font-size: 18px; font-weight: 600; margin: 0; color: #1f2937;">Bachelor's Degree in Related Field</h3>
+        <span style="font-style: italic; color: #6b7280;">2014 - 2018</span>
+      </div>
+      <p style="margin: 0; color: #4b5563;">University Name</p>
     </div>
   </div>
   
-  <div class="section">
-    <h2>Skills</h2>
-    <ul class="skills-list">
-      <li>Skill 1</li>
-      <li>Skill 2</li>
-      <li>Skill 3</li>
-      <li>Skill 4</li>
-      <li>Skill 5</li>
-    </ul>
+  <div class="section" style="margin-bottom: 25px;">
+    <h2 style="font-size: 22px; font-weight: 600; margin: 0 0 15px; padding-bottom: 8px; color: #1e40af; border-bottom: 1px solid #e5e7eb;">Skills</h2>
+    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+      <div style="background: #eff6ff; color: #1e40af; padding: 6px 12px; border-radius: 30px; font-size: 14px; font-weight: 500;">Skill 1</div>
+      <div style="background: #eff6ff; color: #1e40af; padding: 6px 12px; border-radius: 30px; font-size: 14px; font-weight: 500;">Skill 2</div>
+      <div style="background: #eff6ff; color: #1e40af; padding: 6px 12px; border-radius: 30px; font-size: 14px; font-weight: 500;">Skill 3</div>
+      <div style="background: #eff6ff; color: #1e40af; padding: 6px 12px; border-radius: 30px; font-size: 14px; font-weight: 500;">Skill 4</div>
+      <div style="background: #eff6ff; color: #1e40af; padding: 6px 12px; border-radius: 30px; font-size: 14px; font-weight: 500;">Skill 5</div>
+    </div>
+  </div>
+
+  <div class="footer" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 14px; color: #6b7280;">
+    <p style="margin: 0;">This resume was generated with ResumeAI - Customize it further to highlight your unique qualifications.</p>
   </div>
 </div>
           `;
@@ -209,35 +219,19 @@ function ResumeEditor() {
       setLoading(true);
       setError('');
       
-      // Mock grammar check response
-      setTimeout(() => {
-        setGrammarScore(85);
-        setMessage('Grammar check complete! Score: 85%');
+      const response = await axios.post('/api/ai/check-grammar', {
+        resumeId: id
+      });
+      
+      if (response.data.success) {
+        setGrammarScore(response.data.analysis.score);
+        setMessage(`Grammar check complete! Score: ${response.data.analysis.score}%`);
         setTimeout(() => setMessage(''), 3000);
-        setLoading(false);
-      }, 1000);
+      }
     } catch (err) {
       console.error('Error checking grammar:', err);
-      setError('Failed to check grammar');
-      setLoading(false);
-    }
-  };
-
-  const checkPlagiarism = async () => {
-    try {
-      setLoading(true);
-      setError('');
-      
-      // Mock plagiarism check response
-      setTimeout(() => {
-        setPlagiarismScore(92);
-        setMessage('Originality check complete! Score: 92%');
-        setTimeout(() => setMessage(''), 3000);
-        setLoading(false);
-      }, 1000);
-    } catch (err) {
-      console.error('Error checking plagiarism:', err);
-      setError('Failed to check originality');
+      setError('Failed to check grammar: ' + (err.response?.data?.message || err.message));
+    } finally {
       setLoading(false);
     }
   };
@@ -247,16 +241,20 @@ function ResumeEditor() {
       setLoading(true);
       setError('');
       
-      // Mock ATS analysis response
-      setTimeout(() => {
-        setAtsScore(78);
-        setMessage('ATS analysis complete! Score: 78%');
+      const response = await axios.post('/api/ai/analyze-ats', {
+        resumeId: id,
+        jobDescription: jobTitle ? `Job title: ${jobTitle}${targetIndustry ? `, Industry: ${targetIndustry}` : ''}` : undefined
+      });
+      
+      if (response.data.success) {
+        setAtsScore(response.data.analysis.score);
+        setMessage(`ATS analysis complete! Score: ${response.data.analysis.score}%`);
         setTimeout(() => setMessage(''), 3000);
-        setLoading(false);
-      }, 1000);
+      }
     } catch (err) {
       console.error('Error analyzing ATS:', err);
-      setError('Failed to analyze ATS compatibility');
+      setError('Failed to analyze ATS compatibility: ' + (err.response?.data?.message || err.message));
+    } finally {
       setLoading(false);
     }
   };
@@ -292,51 +290,83 @@ function ResumeEditor() {
     setHtmlMode(!htmlMode);
   };
 
+  const handleShareViaEmail = () => {
+    if (!id || id === 'new') {
+      setError('Please save your resume before sharing');
+      setTimeout(() => setError(''), 3000);
+      return;
+    }
+    setShowShareEmailModal(true);
+  };
+
   if (loading && !content && step !== 1) {
     return (
-      <div className="flex justify-center items-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+        <div className="flex flex-col items-center">
+          <div className="relative">
+            <div className="h-20 w-20 rounded-full border-t-4 border-blue-600 border-b-4 border-purple-600 animate-spin"></div>
+            <div className="h-20 w-20 rounded-full border-r-4 border-blue-400 border-l-4 border-purple-400 animate-spin absolute top-0 left-0" 
+              style={{ animationDuration: '1.5s', animationDirection: 'reverse' }}></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+          </div>
+          <div className="mt-8 text-center">
+            <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-2">
+              Loading Your Resume
+            </h3>
+            <p className="text-gray-600">Please wait while we prepare your document...</p>
+          </div>
+          <div className="mt-6 w-64 h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse-slow rounded-full" 
+              style={{width: '75%'}}></div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {step === 1 ? (
-          <div className="max-w-4xl mx-auto">
-            <div className="flex flex-col items-center mb-12">
-              <h1 className="text-4xl md:text-5xl font-bold text-gray-900 text-center mb-4">Create Your Resume</h1>
-              <p className="text-lg text-gray-600 text-center">Choose a template to get started</p>
+          <div className="max-w-5xl mx-auto">
+            <div className="flex flex-col items-center mb-16">
+              <h1 className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 text-center mb-6">Create Your Resume</h1>
+              <p className="text-xl text-gray-600 text-center max-w-2xl">Choose a professional template to showcase your skills and experience</p>
             </div>
             
-            <ResumeTemplates 
-              selectedTemplate={template} 
-              onSelectTemplate={handleTemplateSelect} 
-            />
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-12">
+              <ResumeTemplates 
+                selectedTemplate={template} 
+                onSelectTemplate={handleTemplateSelect} 
+              />
+            </div>
             
-            <div className="mt-12 flex justify-center">
+            <div className="flex justify-center">
               <button
                 onClick={proceedToEditor}
                 disabled={!template}
-                className="bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-medium hover:bg-blue-700 
-                         disabled:opacity-50 disabled:cursor-not-allowed transform transition hover:scale-105
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-10 py-4 rounded-xl text-lg font-medium
+                         disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-300 hover:scale-105
                          shadow-lg hover:shadow-xl"
               >
-                Continue with Selected Template
+                Continue with {template.charAt(0).toUpperCase() + template.slice(1)} Template
               </button>
             </div>
           </div>
         ) : (
           <div className="space-y-8">
-            <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="bg-white rounded-xl shadow-xl p-6 border border-gray-100 transition-all duration-300 hover:shadow-2xl">
               <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center space-y-4 lg:space-y-0 lg:space-x-8">
                 <div className="flex-1 w-full">
                   <input
                     type="text"
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
-                    className="text-3xl md:text-4xl font-bold text-gray-900 border-b-2 border-transparent 
+                    className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 border-b-2 border-transparent 
                              focus:border-blue-500 focus:outline-none w-full bg-transparent"
                     placeholder="Give your resume a title..."
                   />
@@ -344,23 +374,33 @@ function ResumeEditor() {
                 <div className="flex flex-wrap gap-3 w-full lg:w-auto">
                   <button
                     onClick={toggleHtmlMode}
-                    className="flex-1 lg:flex-none bg-gray-600 text-white px-6 py-3 rounded-lg text-sm font-medium
-                             hover:bg-gray-700 transition-colors shadow-md hover:shadow-lg"
+                    className="flex-1 lg:flex-none bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-3 rounded-lg text-sm font-medium
+                             hover:from-gray-700 hover:to-gray-800 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
                   >
                     {htmlMode ? 'Preview Mode' : 'HTML Mode'}
                   </button>
                   <button
                     onClick={() => setShowAIPanel(!showAIPanel)}
-                    className="flex-1 lg:flex-none bg-purple-600 text-white px-6 py-3 rounded-lg text-sm font-medium
-                             hover:bg-purple-700 transition-colors shadow-md hover:shadow-lg"
+                    className="flex-1 lg:flex-none bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-lg text-sm font-medium
+                             hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
                   >
                     {showAIPanel ? 'Hide AI Tools' : 'Show AI Tools'}
                   </button>
                   <button
+                    onClick={handleShareViaEmail}
+                    className="flex-1 lg:flex-none bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-3 rounded-lg text-sm font-medium
+                             hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 flex items-center justify-center space-x-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <span>Share</span>
+                  </button>
+                  <button
                     onClick={saveResume}
                     disabled={saving}
-                    className="flex-1 lg:flex-none bg-blue-600 text-white px-6 py-3 rounded-lg text-sm font-medium
-                             hover:bg-blue-700 disabled:opacity-50 transition-colors shadow-md hover:shadow-lg
+                    className="flex-1 lg:flex-none bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-lg text-sm font-medium
+                             hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105
                              flex items-center justify-center space-x-2"
                   >
                     {saving ? (
@@ -382,7 +422,7 @@ function ResumeEditor() {
             </div>
             
             {error && (
-              <div className="animate-fade-in bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow-md" role="alert">
+              <div className="animate-fade-in bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-[1.01]" role="alert">
                 <div className="flex items-center">
                   <svg className="h-6 w-6 text-red-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -393,7 +433,7 @@ function ResumeEditor() {
             )}
             
             {message && (
-              <div className="animate-fade-in bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-lg shadow-md" role="alert">
+              <div className="animate-fade-in bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-[1.01]" role="alert">
                 <div className="flex items-center">
                   <svg className="h-6 w-6 text-green-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -404,8 +444,8 @@ function ResumeEditor() {
             )}
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className={`col-span-3 lg:col-span-2`}>
-                <div className="bg-white rounded-xl shadow-lg ">
+              <div className={`col-span-3 lg:col-span-${showAIPanel ? 2 : 3}`}>
+                <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-2xl">
                   {htmlMode || editorFailed ? (
                     <div className="p-6">
                       <textarea
@@ -460,13 +500,18 @@ function ResumeEditor() {
               
               {showAIPanel && (
                 <div className="col-span-1">
-                  <div className="bg-white rounded-xl shadow-lg p-6 space-y-8">
+                  <div className="bg-white rounded-xl shadow-xl border border-gray-100 p-6 space-y-8 transition-all duration-300 hover:shadow-2xl">
                     <div>
-                      <h2 className="text-2xl font-bold text-gray-900 mb-6">AI Resume Tools</h2>
+                      <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-6">AI Resume Tools</h2>
                       
                       <div className="space-y-6">
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-4">Resume Information</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                            <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Resume Information
+                          </h3>
                           <div className="space-y-4">
                             <div>
                               <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
@@ -505,13 +550,18 @@ function ResumeEditor() {
                         </div>
                         
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-4">AI Tools</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                            <svg className="w-5 h-5 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                            </svg>
+                            AI Tools
+                          </h3>
                           <div className="space-y-3">
                             <button
                               onClick={generateAIResume}
                               disabled={loading || !jobTitle}
-                              className="w-full bg-purple-600 text-white px-4 py-3 rounded-lg text-sm font-medium
-                                       hover:bg-purple-700 disabled:opacity-50 transition-all transform hover:scale-105
+                              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-3 rounded-lg text-sm font-medium
+                                       hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 transition-all duration-300 transform hover:scale-105
                                        shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
                             >
                               {loading ? (
@@ -531,8 +581,8 @@ function ResumeEditor() {
                             <button
                               onClick={analyzeATS}
                               disabled={loading}
-                              className="w-full bg-blue-600 text-white px-4 py-3 rounded-lg text-sm font-medium
-                                       hover:bg-blue-700 disabled:opacity-50 transition-all transform hover:scale-105
+                              className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white px-4 py-3 rounded-lg text-sm font-medium
+                                       hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 transition-all duration-300 transform hover:scale-105
                                        shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
                             >
                               {loading ? (
@@ -552,8 +602,8 @@ function ResumeEditor() {
                             <button
                               onClick={checkGrammar}
                               disabled={loading}
-                              className="w-full bg-green-600 text-white px-4 py-3 rounded-lg text-sm font-medium
-                                       hover:bg-green-700 disabled:opacity-50 transition-all transform hover:scale-105
+                              className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white px-4 py-3 rounded-lg text-sm font-medium
+                                       hover:from-green-700 hover:to-green-600 disabled:opacity-50 transition-all duration-300 transform hover:scale-105
                                        shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
                             >
                               {loading ? (
@@ -570,72 +620,52 @@ function ResumeEditor() {
                                 </>
                               )}
                             </button>
-                            <button
-                              onClick={checkPlagiarism}
-                              disabled={loading}
-                              className="w-full bg-yellow-600 text-white px-4 py-3 rounded-lg text-sm font-medium
-                                       hover:bg-yellow-700 disabled:opacity-50 transition-all transform hover:scale-105
-                                       shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
-                            >
-                              {loading ? (
-                                <>
-                                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"/>
-                                  <span>Checking...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                  </svg>
-                                  <span>Check Originality</span>
-                                </>
-                              )}
-                            </button>
                           </div>
                         </div>
                         
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-4">Resume Metrics</h3>
+                          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                            <svg className="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Resume Metrics
+                          </h3>
                           <div className="space-y-4">
                             {atsScore !== null && (
-                              <div className="space-y-2">
+                              <div className="space-y-2 bg-blue-50 p-4 rounded-lg">
                                 <div className="flex justify-between items-center">
                                   <span className="text-sm font-medium text-gray-700">ATS Score</span>
                                   <span className="text-sm font-bold text-blue-600">{atsScore}%</span>
                                 </div>
                                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                                   <div 
-                                    className="h-full bg-blue-600 rounded-full transition-all duration-500 ease-out"
+                                    className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all duration-500 ease-out"
                                     style={{ width: `${atsScore}%` }}
                                   />
+                                </div>
+                                <div className="text-xs text-blue-600 mt-1">
+                                  {atsScore >= 80 ? 'Great! Your resume is highly optimized for ATS systems.' :
+                                   atsScore >= 60 ? 'Good! With a few tweaks, your resume can be even better.' :
+                                   'Your resume needs improvement to pass ATS systems.'}
                                 </div>
                               </div>
                             )}
                             {grammarScore !== null && (
-                              <div className="space-y-2">
+                              <div className="space-y-2 bg-green-50 p-4 rounded-lg">
                                 <div className="flex justify-between items-center">
                                   <span className="text-sm font-medium text-gray-700">Grammar Score</span>
                                   <span className="text-sm font-bold text-green-600">{grammarScore}%</span>
                                 </div>
                                 <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                                   <div 
-                                    className="h-full bg-green-600 rounded-full transition-all duration-500 ease-out"
+                                    className="h-full bg-gradient-to-r from-green-600 to-green-400 rounded-full transition-all duration-500 ease-out"
                                     style={{ width: `${grammarScore}%` }}
                                   />
                                 </div>
-                              </div>
-                            )}
-                            {plagiarismScore !== null && (
-                              <div className="space-y-2">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm font-medium text-gray-700">Originality Score</span>
-                                  <span className="text-sm font-bold text-yellow-600">{plagiarismScore}%</span>
-                                </div>
-                                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-yellow-600 rounded-full transition-all duration-500 ease-out"
-                                    style={{ width: `${plagiarismScore}%` }}
-                                  />
+                                <div className="text-xs text-green-600 mt-1">
+                                  {grammarScore >= 80 ? 'Excellent! Your resume has very few grammar issues.' :
+                                   grammarScore >= 60 ? 'Good! Some minor grammar improvements would help.' :
+                                   'Consider reviewing your resume for grammar issues.'}
                                 </div>
                               </div>
                             )}
@@ -650,6 +680,14 @@ function ResumeEditor() {
           </div>
         )}
       </div>
+      
+      {/* Share Email Modal */}
+      <ShareEmailModal 
+        isOpen={showShareEmailModal}
+        onClose={() => setShowShareEmailModal(false)}
+        resumeId={id}
+        resumeTitle={title}
+      />
     </div>
   );
 }
