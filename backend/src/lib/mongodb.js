@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/resume-builder';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://172.17.96.1:27017/resume-builder';
 
 if (!MONGODB_URI) {
   throw new Error(
