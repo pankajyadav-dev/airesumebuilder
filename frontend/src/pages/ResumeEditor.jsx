@@ -318,9 +318,19 @@ function ResumeEditor() {
       return;
     }
     try {
+      console.log('Downloading PDF for resume ID:', id);
       const response = await axios.get(`/api/resume/${id}/pdf`, {
-        responseType: 'blob'
+        responseType: 'blob',
+        headers: {
+          'Accept': 'application/pdf'
+        }
       });
+      
+      if (!response.data) {
+        throw new Error('No PDF data received');
+      }
+      
+      console.log('PDF data received, size:', response.data.size);
       
       // Create a blob from the PDF data
       const blob = new Blob([response.data], { type: 'application/pdf' });
@@ -334,7 +344,37 @@ function ResumeEditor() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error downloading PDF:', err);
-      setError('Failed to download PDF. Please try again.');
+      
+      // Check if the error response contains a message
+      let errorMessage = 'Failed to download PDF. Please try again.';
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error('Error response:', err.response.data);
+        if (err.response.data instanceof Blob) {
+          // Convert blob to text to read error message
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const errorData = JSON.parse(reader.result);
+              errorMessage = errorData.message || errorMessage;
+            } catch (e) {
+              console.error('Error parsing error response:', e);
+            }
+          };
+          reader.readAsText(err.response.data);
+        } else if (typeof err.response.data === 'object') {
+          errorMessage = err.response.data.message || errorMessage;
+        }
+      } else if (err.request) {
+        // The request was made but no response was received
+        errorMessage = 'No response received from server. Please check your connection.';
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        errorMessage = err.message || errorMessage;
+      }
+      
+      setError(errorMessage);
       setTimeout(() => setError(''), 3000);
     }
   };

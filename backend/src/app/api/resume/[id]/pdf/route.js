@@ -49,14 +49,23 @@ async function generateResumePdf(request, { params }) {
     console.log('PDF Generation: Resume found, content length:', resume.content.length);
     const htmlContent = resume.content;
     
+    if (!htmlContent) {
+      console.log('PDF Generation: Resume content is empty');
+      return NextResponse.json(
+        { success: false, message: 'Resume content is empty' },
+        { status: 400 }
+      );
+    }
+    
     // Generate PDF from HTML
     console.log('PDF Generation: Launching Puppeteer');
-    const browser = await puppeteer.launch({ 
-      headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
-    
+    let browser;
     try {
+      browser = await puppeteer.launch({ 
+        headless: 'new',
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+      
       console.log('PDF Generation: Creating new page');
       const page = await browser.newPage();
       
@@ -84,24 +93,37 @@ async function generateResumePdf(request, { params }) {
         }
       });
       
-      console.log('PDF Generation: PDF generated successfully');
+      if (!pdfBuffer || pdfBuffer.length === 0) {
+        throw new Error('Generated PDF is empty');
+      }
+      
+      console.log('PDF Generation: PDF generated successfully, size:', pdfBuffer.length);
       
       // Return PDF as a downloadable file
-      const response = new NextResponse(pdfBuffer, {
+      return new NextResponse(pdfBuffer, {
         status: 200,
         headers: {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="${resume.title || 'Resume'}.pdf"`,
+          'Content-Length': pdfBuffer.length.toString(),
         },
       });
-      
-      return response;
     } catch (puppeteerError) {
       console.error('PDF Generation: Puppeteer error:', puppeteerError);
-      throw puppeteerError;
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Failed to generate PDF', 
+          error: puppeteerError.message,
+          stack: process.env.NODE_ENV === 'development' ? puppeteerError.stack : undefined
+        },
+        { status: 500 }
+      );
     } finally {
-      console.log('PDF Generation: Closing browser');
-      await browser.close();
+      if (browser) {
+        console.log('PDF Generation: Closing browser');
+        await browser.close();
+      }
     }
   } catch (error) {
     console.error('PDF Generation: Error:', error);
