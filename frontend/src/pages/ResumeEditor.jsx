@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import ResumeTemplates, { getTemplateHtml } from '../components/ResumeTemplates';
 import ShareEmailModal from '../components/ShareResume';
+import GrammarAnalysisModal from '../components/GrammarAnalysisModal';
+import AtsAnalysisModal from '../components/AtsAnalysisModal';
 import axios from 'axios';
 import { Editor } from '@tinymce/tinymce-react';
 
@@ -740,246 +742,20 @@ function ResumeEditor() {
 
       {/* ATS Analysis Modal */}
       {atsAnalysis && (
-        <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 ${showAtsModal ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-          <div className="bg-white rounded-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 transform transition-all duration-300">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-blue-800">ATS Analysis Results</h2>
-              <button 
-                onClick={() => setShowAtsModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              {/* ATS Score */}
-              <div className="mb-6">
-                <h3 className="text-lg font-medium mb-2">ATS Compatibility Score</h3>
-                <div className="relative pt-1">
-                  <div className="flex mb-2 items-center justify-between">
-                    <div>
-                      <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-blue-600 bg-blue-200">
-                        Score
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className={`text-xs font-semibold inline-block ${
-                        atsAnalysis.score >= 85 ? 'text-green-600' : 
-                        atsAnalysis.score >= 70 ? 'text-yellow-600' : 'text-red-600'
-                      }`}>
-                        {atsAnalysis.score}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-blue-200">
-                    <div
-                      style={{ width: `${atsAnalysis.score}%` }}
-                      className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
-                        atsAnalysis.score >= 85 ? 'bg-green-500' : 
-                        atsAnalysis.score >= 70 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`}
-                    ></div>
-                  </div>
-                </div>
-                <p className={`text-sm ${
-                  atsAnalysis.score >= 85 ? 'text-green-600' : 
-                  atsAnalysis.score >= 70 ? 'text-yellow-600' : 'text-red-600'
-                }`}>
-                  {atsAnalysis.score >= 85 ? 'Excellent! Your resume is well-optimized for ATS systems.' : 
-                   atsAnalysis.score >= 70 ? 'Good. Your resume should pass most ATS systems with some improvements.' : 
-                   'Needs improvement. Your resume may struggle with ATS systems.'}
-                </p>
-              </div>
-
-              {/* Keywords */}
-              <div className="mb-6">
-                <h3 className="text-lg font-medium mb-2">Recognized Keywords</h3>
-                <div className="flex flex-wrap gap-2">
-                  {atsAnalysis.keywords.map((keyword, index) => (
-                    <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded-full">
-                      {keyword}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Missing Keywords */}
-              {atsAnalysis.missingKeywords && atsAnalysis.missingKeywords.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium mb-2 text-yellow-600">Missing Keywords</h3>
-                  <p className="text-sm text-gray-600 mb-2">
-                    Consider adding these keywords to improve ATS matching:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {atsAnalysis.missingKeywords.map((keyword, index) => (
-                      <span key={index} className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
-                        {keyword}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Issues */}
-              <div className="mb-6">
-                <h3 className="text-lg font-medium mb-2">ATS Issues</h3>
-                <ul className="list-disc pl-5 space-y-1">
-                  {atsAnalysis.issues.map((issue, index) => (
-                    <li key={index} className="text-sm text-gray-700">
-                      {issue}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Recommendations */}
-              <div className="mb-6">
-                <h3 className="text-lg font-medium mb-2">Recommendations</h3>
-                <ul className="list-disc pl-5 space-y-1">
-                  {atsAnalysis.recommendations.map((recommendation, index) => (
-                    <li key={index} className="text-sm text-gray-700">
-                      {recommendation}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Formatting Issues */}
-              {atsAnalysis.formattingIssues && atsAnalysis.formattingIssues.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium mb-2">Formatting Issues</h3>
-                  <ul className="list-disc pl-5 space-y-1">
-                    {atsAnalysis.formattingIssues.map((issue, index) => (
-                      <li key={index} className="text-sm text-gray-700">
-                        {issue}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setShowAtsModal(false)}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-800 transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <AtsAnalysisModal 
+          isOpen={showAtsModal}
+          onClose={() => setShowAtsModal(false)}
+          analysis={atsAnalysis}
+        />
       )}
 
       {/* Grammar Analysis Modal */}
       {grammarAnalysis && (
-        <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 ${showGrammarModal ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-          <div className="bg-white rounded-2xl p-8 w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 transform transition-all duration-300">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-green-800">Grammar Check Results</h2>
-              <button 
-                onClick={() => setShowGrammarModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors duration-200"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              {/* Grammar Score */}
-              <div className="mb-6">
-                <h3 className="text-lg font-medium mb-2">Grammar Score</h3>
-                <div className="relative pt-1">
-                  <div className="flex mb-2 items-center justify-between">
-                    <div>
-                      <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-green-600 bg-green-200">
-                        Score
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className={`text-xs font-semibold inline-block ${
-                        grammarAnalysis.score >= 85 ? 'text-green-600' : 
-                        grammarAnalysis.score >= 70 ? 'text-yellow-600' : 'text-red-600'
-                      }`}>
-                        {grammarAnalysis.score}%
-                      </span>
-                    </div>
-                  </div>
-                  <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-green-200">
-                    <div
-                      style={{ width: `${grammarAnalysis.score}%` }}
-                      className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
-                        grammarAnalysis.score >= 85 ? 'bg-green-500' : 
-                        grammarAnalysis.score >= 70 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Summary */}
-              <div className="mb-6 p-3 bg-blue-50 rounded">
-                <h3 className="font-medium mb-1">Summary</h3>
-                <p>{grammarAnalysis.summary}</p>
-              </div>
-
-              {/* Grammar Errors */}
-              {grammarAnalysis.errors && grammarAnalysis.errors.length > 0 ? (
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium mb-2">Grammar Corrections ({grammarAnalysis.errors.length})</h3>
-                  <div className="space-y-3">
-                    {grammarAnalysis.errors.map((error, index) => (
-                      <div key={index} className="p-3 bg-gray-50 rounded">
-                        <div className="flex flex-col sm:flex-row mb-1">
-                          <span className="font-medium w-20">Original:</span>
-                          <span className="text-red-600">{error.original}</span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row mb-1">
-                          <span className="font-medium w-20">Correction:</span>
-                          <span className="text-green-600">{error.correction}</span>
-                        </div>
-                        <div className="flex flex-col sm:flex-row">
-                          <span className="font-medium w-20">Explanation:</span>
-                          <span>{error.explanation}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-green-600">No grammatical errors were found in your resume.</p>
-              )}
-
-              {/* Style Recommendations */}
-              {grammarAnalysis.styleRecommendations && grammarAnalysis.styleRecommendations.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-lg font-medium mb-2">Style Recommendations</h3>
-                  <ul className="list-disc pl-5 space-y-1">
-                    {grammarAnalysis.styleRecommendations.map((recommendation, index) => (
-                      <li key={index} className="text-sm text-gray-700">
-                        {recommendation}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={() => setShowGrammarModal(false)}
-                className="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-800 transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <GrammarAnalysisModal 
+          isOpen={showGrammarModal}
+          onClose={() => setShowGrammarModal(false)}
+          analysis={grammarAnalysis}
+        />
       )}
     </div>
   );

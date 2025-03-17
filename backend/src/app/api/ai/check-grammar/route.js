@@ -63,11 +63,6 @@ async function checkGrammarHandler(request) {
             original: "Led team of 5 developers",
             correction: "Led a team of 5 developers",
             explanation: "Missing article before 'team'"
-          },
-          {
-            original: "Implemented software that increased efficiency",
-            correction: "Implemented software that increased efficiency by 20%",
-            explanation: "Consider quantifying achievements for more impact"
           }
         ],
         styleRecommendations: [
@@ -131,6 +126,14 @@ async function checkGrammarHandler(request) {
       // Parse the JSON response
       const analysisResult = JSON.parse(generatedContent);
       
+      // Create a clean response with only the essential data
+      const cleanAnalysisResult = {
+        score: analysisResult.score,
+        summary: analysisResult.summary || "",
+        errors: analysisResult.errors || [],
+        styleRecommendations: analysisResult.styleRecommendations || []
+      };
+      
       // Update the resume with the grammar score if resumeId was provided
       if (resume) {
         resume.metrics.grammarScore = analysisResult.score;
@@ -139,7 +142,7 @@ async function checkGrammarHandler(request) {
       
       return NextResponse.json({
         success: true,
-        analysis: analysisResult
+        analysis: cleanAnalysisResult
       });
     } catch (error) {
       console.error('Gemini API error:', error);

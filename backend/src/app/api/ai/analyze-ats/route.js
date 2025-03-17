@@ -140,6 +140,16 @@ async function analyzAtsHandler(request) {
       // Parse the JSON response
       const analysisResult = JSON.parse(generatedContent);
       
+      // Create a clean response with only the essential data
+      const cleanAnalysisResult = {
+        score: analysisResult.score,
+        keywords: analysisResult.keywords || [],
+        missingKeywords: analysisResult.missingKeywords || [],
+        issues: analysisResult.issues || [],
+        recommendations: analysisResult.recommendations || [],
+        formattingIssues: analysisResult.formattingIssues || []
+      };
+      
       // Update the resume with the ATS score if resumeId was provided
       if (resume) {
         resume.metrics.atsScore = analysisResult.score;
@@ -148,7 +158,7 @@ async function analyzAtsHandler(request) {
       
       return NextResponse.json({
         success: true,
-        analysis: analysisResult
+        analysis: cleanAnalysisResult
       });
     } catch (error) {
       console.error('Gemini API error:', error);

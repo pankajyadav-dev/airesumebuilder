@@ -94,14 +94,64 @@ async function generateResumeHandler(request) {
           topP: 0.9,
           topK: 40,
           maxOutputTokens: 4096,
-        }
+        },
+        safetySettings: [
+          {
+            category: "HARM_CATEGORY_HARASSMENT",
+            threshold: "BLOCK_ONLY_HIGH"
+          },
+          {
+            category: "HARM_CATEGORY_HATE_SPEECH",
+            threshold: "BLOCK_ONLY_HIGH"
+          },
+          {
+            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            threshold: "BLOCK_ONLY_HIGH"
+          },
+          {
+            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+            threshold: "BLOCK_ONLY_HIGH"
+          }
+        ]
       });
       
       console.log('AI Resume API: Sending request to Gemini API');
-      // Generate content using the updated SDK approach
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      let generatedContent = response.text();
+      
+      // Add retry logic for API reliability
+      let attempts = 0;
+      const maxAttempts = 3;
+      let generatedContent = '';
+      let result;
+      
+      while (attempts < maxAttempts) {
+        try {
+          // Generate content using the updated SDK approach
+          result = await model.generateContent(prompt);
+          const response = await result.response;
+          generatedContent = response.text();
+          
+          // If we got content successfully, break out of retry loop
+          if (generatedContent && generatedContent.length > 0) {
+            break;
+          }
+          
+          attempts++;
+          console.log(`AI Resume API: Empty response, retrying (${attempts}/${maxAttempts})`);
+          
+          // Wait briefly before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (err) {
+          attempts++;
+          console.error(`AI Resume API: Error on attempt ${attempts}/${maxAttempts}:`, err.message);
+          
+          if (attempts >= maxAttempts) {
+            throw err; // Re-throw if we've exhausted retries
+          }
+          
+          // Wait before retrying, with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+        }
+      }
       
       // Clean up the response to ensure it's valid HTML
       // Sometimes Gemini might include ```html and ``` markers
@@ -111,6 +161,15 @@ async function generateResumeHandler(request) {
       if (!generatedContent.trim().startsWith('<div') && !generatedContent.trim().startsWith('<html')) {
         generatedContent = `<div>${generatedContent}</div>`;
       }
+      
+      // Remove any explanatory text that might appear outside the HTML tags
+      const htmlMatch = generatedContent.match(/<div[\s\S]*<\/div>/);
+      if (htmlMatch) {
+        generatedContent = htmlMatch[0];
+      }
+      
+      // Fix common HTML issues
+      generatedContent = fixHtmlIssues(generatedContent);
       
       console.log('AI Resume API: Successfully generated content');
       return NextResponse.json({
@@ -164,17 +223,228 @@ function formatEducationForPrompt(education) {
 // Helper function to generate a default summary
 function generateDefaultSummary(name, jobTitle, targetCompany, targetIndustry, profile) {
   const hasSkills = profile.skills && profile.skills.length > 0;
-  const skillsText = hasSkills ? profile.skills.slice(0, 3).join(', ') : 'relevant technical and professional skills';
   
-  return `Results-driven ${jobTitle} with expertise in ${skillsText}. Dedicated to delivering high-quality results${targetCompany ? ` at ${targetCompany}` : ''}${targetIndustry ? ` in the ${targetIndustry} industry` : ''}.`;
+  // Generate a list of relevant qualities based on job title
+  const qualities = getJobQualities(jobTitle);
+  const randomQuality1 = qualities[0];
+  const randomQuality2 = qualities[1];
+  
+  // Generate a list of relevant action verbs based on job title
+  const verbs = getJobActionVerbs(jobTitle);
+  const randomVerb = verbs[Math.floor(Math.random() * verbs.length)];
+  
+  // Get skills text - either from user profile or generate based on job
+  const skillsText = hasSkills 
+    ? profile.skills.slice(0, 3).join(', ') 
+    : getRelevantSkills(jobTitle, targetIndustry).slice(0, 3).join(', ');
+  
+  // Format summary with different structures for variety
+  const summaryVariant = Math.floor(Math.random() * 3);
+  
+  if (summaryVariant === 0) {
+    return `${randomQuality1} ${jobTitle} with ${Math.floor(Math.random() * 5) + 3}+ years of experience in ${skillsText}. Passionate about ${randomVerb} exceptional results${targetCompany ? ` for ${targetCompany}` : ''}${targetIndustry ? ` in the ${targetIndustry} industry` : ''}.`;
+  } else if (summaryVariant === 1) {
+    return `Results-driven ${jobTitle} with expertise in ${skillsText}. ${randomQuality2} professional committed to ${randomVerb} high-quality solutions${targetCompany ? ` at ${targetCompany}` : ''}${targetIndustry ? ` in the ${targetIndustry} sector` : ''}.`;
+  } else {
+    return `Accomplished ${jobTitle} offering strong skills in ${skillsText}. Known for ${randomVerb} innovative approaches to challenges${targetCompany ? ` that align with ${targetCompany}'s goals` : ''}${targetIndustry ? ` in the competitive ${targetIndustry} space` : ''}.`;
+  }
+}
+
+// Helper function to get job-specific qualities
+function getJobQualities(jobTitle) {
+  const lowercaseTitle = jobTitle.toLowerCase();
+  
+  // Default qualities for any position
+  const defaultQualities = [
+    'Results-driven', 'Detail-oriented', 'Innovative', 'Highly motivated',
+    'Strategic', 'Adaptable', 'Proactive', 'Collaborative'
+  ];
+  
+  // Tech/Developer qualities
+  if (lowercaseTitle.includes('software') || lowercaseTitle.includes('developer') || lowercaseTitle.includes('engineer')) {
+    return shuffleArray([
+      'Detail-oriented', 'Analytical', 'Innovative', 'Technical',
+      'Solutions-focused', 'Systems-thinking', 'Architecture-minded', 'Algorithm-savvy'
+    ]).slice(0, 2);
+  }
+  
+  // Data-related qualities
+  if (lowercaseTitle.includes('data') || lowercaseTitle.includes('analyst')) {
+    return shuffleArray([
+      'Analytical', 'Data-driven', 'Detail-oriented', 'Solutions-focused',
+      'Insights-oriented', 'Pattern-recognizing', 'Statistical', 'Methodical'
+    ]).slice(0, 2);
+  }
+  
+  // Marketing qualities
+  if (lowercaseTitle.includes('market') || lowercaseTitle.includes('brand')) {
+    return shuffleArray([
+      'Creative', 'Results-driven', 'Strategic', 'Customer-focused',
+      'Trend-aware', 'Growth-oriented', 'Audience-centric', 'Campaign-savvy'
+    ]).slice(0, 2);
+  }
+  
+  // Management qualities
+  if (lowercaseTitle.includes('manager') || lowercaseTitle.includes('director') || lowercaseTitle.includes('lead')) {
+    return shuffleArray([
+      'Strategic', 'Leadership-focused', 'Results-oriented', 'Team-building',
+      'Vision-driven', 'Decision-making', 'Objective-focused', 'Business-minded'
+    ]).slice(0, 2);
+  }
+  
+  // Shuffle and return default qualities if no specific match
+  return shuffleArray(defaultQualities).slice(0, 2);
+}
+
+// Helper function to get job-specific action verbs
+function getJobActionVerbs(jobTitle) {
+  const lowercaseTitle = jobTitle.toLowerCase();
+  
+  // Default verbs for any position
+  const defaultVerbs = [
+    'delivering', 'implementing', 'developing', 'creating',
+    'managing', 'optimizing', 'leading', 'executing'
+  ];
+  
+  // Tech/Developer verbs
+  if (lowercaseTitle.includes('software') || lowercaseTitle.includes('developer') || lowercaseTitle.includes('engineer')) {
+    return shuffleArray([
+      'architecting', 'developing', 'engineering', 'implementing',
+      'coding', 'designing', 'optimizing', 'building'
+    ]);
+  }
+  
+  // Data-related verbs
+  if (lowercaseTitle.includes('data') || lowercaseTitle.includes('analyst')) {
+    return shuffleArray([
+      'analyzing', 'modeling', 'visualizing', 'interpreting',
+      'forecasting', 'mining', 'transforming', 'extracting'
+    ]);
+  }
+  
+  // Marketing verbs
+  if (lowercaseTitle.includes('market') || lowercaseTitle.includes('brand')) {
+    return shuffleArray([
+      'promoting', 'strategizing', 'branding', 'launching',
+      'growing', 'positioning', 'engaging', 'communicating'
+    ]);
+  }
+  
+  // Management verbs
+  if (lowercaseTitle.includes('manager') || lowercaseTitle.includes('director') || lowercaseTitle.includes('lead')) {
+    return shuffleArray([
+      'leading', 'directing', 'managing', 'overseeing',
+      'guiding', 'spearheading', 'orchestrating', 'driving'
+    ]);
+  }
+  
+  // Shuffle and return default verbs if no specific match
+  return shuffleArray(defaultVerbs);
+}
+
+// Helper function to get relevant skills based on job title
+function getRelevantSkills(jobTitle, targetIndustry) {
+  const lowercaseTitle = jobTitle.toLowerCase();
+  const lowercaseIndustry = (targetIndustry || '').toLowerCase();
+  
+  // Default skills for any position
+  const defaultSkills = [
+    'project management', 'team collaboration', 'strategic planning',
+    'problem-solving', 'communication', 'critical thinking'
+  ];
+  
+  // Tech/Developer skills
+  if (lowercaseTitle.includes('software') || lowercaseTitle.includes('developer') || lowercaseTitle.includes('engineer')) {
+    const techSkills = [
+      'JavaScript', 'Python', 'React', 'Node.js', 'cloud architecture',
+      'full-stack development', 'API integration', 'system design'
+    ];
+    
+    if (lowercaseIndustry.includes('web')) {
+      return shuffleArray([...techSkills, 'responsive design', 'UX/UI', 'frontend frameworks']);
+    }
+    
+    return shuffleArray(techSkills);
+  }
+  
+  // Data-related skills
+  if (lowercaseTitle.includes('data') || lowercaseTitle.includes('analyst')) {
+    return shuffleArray([
+      'data analysis', 'SQL', 'data visualization', 'statistical modeling',
+      'Python', 'R', 'machine learning', 'business intelligence'
+    ]);
+  }
+  
+  // Marketing skills
+  if (lowercaseTitle.includes('market') || lowercaseTitle.includes('brand')) {
+    return shuffleArray([
+      'digital marketing', 'content strategy', 'SEO', 'social media management',
+      'campaign analytics', 'brand development', 'market research', 'CRM'
+    ]);
+  }
+  
+  // Management skills
+  if (lowercaseTitle.includes('manager') || lowercaseTitle.includes('director') || lowercaseTitle.includes('lead')) {
+    return shuffleArray([
+      'team leadership', 'strategic planning', 'performance management', 'budget oversight',
+      'stakeholder communication', 'project management', 'business development', 'process improvement'
+    ]);
+  }
+  
+  // Return industry-specific skills if available, otherwise default
+  if (lowercaseIndustry.includes('health')) {
+    return shuffleArray([
+      'healthcare operations', 'patient care', 'regulatory compliance',
+      'medical terminology', 'health informatics', 'patient advocacy'
+    ]);
+  }
+  
+  if (lowercaseIndustry.includes('finance')) {
+    return shuffleArray([
+      'financial analysis', 'risk management', 'investment strategies',
+      'regulatory compliance', 'portfolio management', 'financial reporting'
+    ]);
+  }
+  
+  // Shuffle and return default skills if no specific match
+  return shuffleArray(defaultSkills);
+}
+
+// Helper function to shuffle an array
+function shuffleArray(array) {
+  const newArray = [...array];
+  for (let i = newArray.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+  }
+  return newArray;
 }
 
 // Helper function to construct a detailed resume generation prompt
 function constructResumePrompt(userData, jobTitle, targetCompany, targetIndustry) {
-  let prompt = `Create a professional, ATS-optimized HTML resume for ${userData.name} who is applying for a ${jobTitle} position`;
+  // Determine the completeness of user data to adjust prompt complexity
+  const hasBasicInfo = userData.name && userData.email;
+  const hasContactInfo = userData.phone || userData.address || userData.website || userData.linkedin || userData.github;
+  const hasExperience = userData.experience && userData.experience.length > 0;
+  const hasEducation = userData.education && userData.education.length > 0;
+  const hasSkills = userData.skills && userData.skills.length > 0;
+  const hasCertifications = userData.certifications && userData.certifications.length > 0;
+  const hasAchievements = userData.achievements && userData.achievements.length > 0;
+  
+  // Calculate information completeness for context-aware prompt generation
+  const completenessScore = [
+    hasBasicInfo, hasContactInfo, hasExperience, hasEducation, 
+    hasSkills, hasCertifications, hasAchievements
+  ].filter(Boolean).length / 7;
+  
+  let prompt = `You are an expert resume writer with years of experience creating ATS-optimized, professional resumes. 
+Your task is to create a polished, modern HTML resume that will help the candidate stand out and pass ATS screenings.
+
+CREATE A RESUME FOR:
+A ${jobTitle} candidate`;
   
   if (targetCompany) {
-    prompt += ` at ${targetCompany}`;
+    prompt += ` applying to ${targetCompany}`;
   }
   
   if (targetIndustry) {
@@ -183,8 +453,15 @@ function constructResumePrompt(userData, jobTitle, targetCompany, targetIndustry
   
   prompt += '.\n\n';
   
+  // Add special instructions based on data completeness
+  if (completenessScore < 0.5) {
+    prompt += `SPECIAL INSTRUCTION: This candidate has provided limited information. Please generate appropriate 
+professional experiences, education, and skills that would be typical and impressive for a ${jobTitle} 
+${targetIndustry ? `in the ${targetIndustry} industry` : ''}. Make it realistic but impressive.\n\n`;
+  }
+  
   // Add contact information
-  prompt += 'CONTACT INFORMATION:\n';
+  prompt += 'CANDIDATE INFORMATION:\n';
   prompt += `Name: ${userData.name}\n`;
   prompt += `Email: ${userData.email}\n`;
   if (userData.phone) prompt += `Phone: ${userData.phone}\n`;
@@ -197,9 +474,9 @@ function constructResumePrompt(userData, jobTitle, targetCompany, targetIndustry
   prompt += '\nPROFESSIONAL SUMMARY:\n';
   prompt += userData.summary + '\n';
   
-  // Add experience
-  prompt += '\nEXPERIENCE:\n';
-  if (userData.experience.length > 0) {
+  // Add experience with detailed instructions
+  prompt += '\nWORK EXPERIENCE:\n';
+  if (hasExperience) {
     userData.experience.forEach(exp => {
       prompt += `Position: ${exp.position}\n`;
       prompt += `Company: ${exp.company}\n`;
@@ -208,12 +485,14 @@ function constructResumePrompt(userData, jobTitle, targetCompany, targetIndustry
       prompt += '\n';
     });
   } else {
-    prompt += 'No previous experience provided. Include a section with relevant experience for a ' + jobTitle + ' role.\n';
+    prompt += `No experience provided. Please generate 2-3 relevant work experiences for a ${jobTitle} role`;
+    if (targetIndustry) prompt += ` in the ${targetIndustry} industry`;
+    prompt += `. Make the experiences realistic, impressive, and include quantifiable achievements. Ensure job titles, company names, and dates are appropriate.\n`;
   }
   
-  // Add education
+  // Add education with detailed instructions
   prompt += '\nEDUCATION:\n';
-  if (userData.education.length > 0) {
+  if (hasEducation) {
     userData.education.forEach(edu => {
       prompt += `Degree: ${edu.degree} in ${edu.field}\n`;
       prompt += `Institution: ${edu.institution}\n`;
@@ -222,46 +501,104 @@ function constructResumePrompt(userData, jobTitle, targetCompany, targetIndustry
       prompt += '\n';
     });
   } else {
-    prompt += 'No education information provided. Include a section with relevant education for a ' + jobTitle + ' role.\n';
+    prompt += `No education provided. Please generate an appropriate educational background for a ${jobTitle} role`;
+    if (targetIndustry) prompt += ` in the ${targetIndustry} industry`;
+    prompt += `. Include relevant degree, field of study, institution, and dates.\n`;
   }
   
-  // Add skills
+  // Add skills with detailed instructions
   prompt += '\nSKILLS:\n';
-  if (userData.skills.length > 0) {
+  if (hasSkills) {
     prompt += userData.skills.join(', ') + '\n';
   } else {
-    prompt += 'No skills provided. Include relevant skills for a ' + jobTitle + ' role.\n';
+    prompt += `No skills provided. Please generate 8-12 relevant technical and soft skills for a ${jobTitle} role`;
+    if (targetIndustry) prompt += ` in the ${targetIndustry} industry`;
+    prompt += `. Include a mix of hard and soft skills that would impress recruiters and pass ATS systems.\n`;
   }
   
   // Add certifications if available
-  if (userData.certifications.length > 0) {
+  if (hasCertifications) {
     prompt += '\nCERTIFICATIONS:\n';
     userData.certifications.forEach(cert => {
       prompt += `${cert.name} from ${cert.issuer} (${new Date(cert.date).getFullYear()})\n`;
     });
+  } else if (targetIndustry || jobTitle) {
+    prompt += '\nCERTIFICATIONS:\n';
+    prompt += `No certifications provided. If appropriate for a ${jobTitle} role`;
+    if (targetIndustry) prompt += ` in the ${targetIndustry} industry`;
+    prompt += `, please include 1-2 relevant industry certifications.\n`;
   }
   
   // Add achievements if available
-  if (userData.achievements.length > 0) {
+  if (hasAchievements) {
     prompt += '\nACHIEVEMENTS:\n';
     userData.achievements.forEach(achievement => {
       prompt += `- ${achievement}\n`;
     });
   }
   
-  // Instructions for HTML creation
-  prompt += `\nCREATE A BEAUTIFUL MODERN HTML RESUME WITH THE FOLLOWING SPECIFICATIONS:
-1. Use clean, professional HTML formatting with inline CSS
-2. Create a modern, visually appealing design with appropriate spacing and typography
-3. Include all the sections mentioned above, with appropriate headers and formatting
-4. Make the resume ATS-friendly by using standard section headers and including relevant keywords for a ${jobTitle} position
-5. Use bullet points for experience, skills, and achievements to improve readability
-6. If any information is missing, create reasonable placeholder content based on the ${jobTitle} role${targetIndustry ? ` in ${targetIndustry}` : ''}
-7. Include quantifiable achievements and metrics where possible
-8. Format the HTML to be easily printable and professional-looking
-9. Use a modern color scheme that is professional but distinctive`;
+  // Add ATS optimization instructions
+  prompt += `\nATS OPTIMIZATION:
+1. Include job-specific keywords for ${jobTitle} positions
+2. Use industry-standard section headings and formatting
+3. Avoid tables, images, headers, footers, or complex layouts
+4. Include relevant ${targetIndustry || "industry"} terminology
+5. Use measurable achievements and quantified results`;
+  
+  // HTML format instructions
+  prompt += `\n\nHTML FORMATTING INSTRUCTIONS:
+1. Create clean, semantic HTML with inline CSS only
+2. Use a professional single-column layout optimized for ATS systems
+3. Use a modern, professional color scheme with subtle accents (preferably blue/navy/gray tones)
+4. Ensure proper spacing and typography for readability
+5. Use appropriate heading hierarchy (h1, h2, h3)
+6. Create a balanced design with proper visual hierarchy
+7. Include only the HTML content for the resume (no <html>, <head> or <doctype> tags)
+8. Start the HTML with a single root <div> element containing the entire resume
+9. Use bullet points for listing experiences, skills, and achievements
+10. Format dates, job titles, and company names consistently
+11. If creating experiences from scratch, include realistic metrics and achievements with numbers
+
+RESPONSE FORMAT: Respond with ONLY the HTML resume content, nothing else - no explanations, no markdown formatting, just the raw HTML.`;
 
   return prompt;
+}
+
+// Helper function to fix common HTML issues
+function fixHtmlIssues(htmlContent) {
+  // Ensure there are no remaining text snippets, explanations or markdown outside the HTML
+  htmlContent = htmlContent.replace(/^[\s\S]*?(<div[\s\S]*<\/div>)[\s\S]*$/, '$1');
+  
+  // Fix unclosed tags
+  const commonTags = ['div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'ul', 'ol', 'li', 'a', 'strong', 'em', 'b', 'i'];
+  
+  commonTags.forEach(tag => {
+    // Count opening and closing tags
+    const openCount = (htmlContent.match(new RegExp(`<${tag}(\\s|>)`, 'g')) || []).length;
+    const closeCount = (htmlContent.match(new RegExp(`</${tag}>`, 'g')) || []).length;
+    
+    // Add missing closing tags at the end
+    if (openCount > closeCount) {
+      const difference = openCount - closeCount;
+      for (let i = 0; i < difference; i++) {
+        htmlContent += `</${tag}>`;
+      }
+    }
+  });
+  
+  // Fix common HTML entity issues
+  htmlContent = htmlContent
+    .replace(/&(?!amp;|lt;|gt;|quot;|apos;|nbsp;|copy;|reg;|#\d+;)/g, '&amp;') // Fix unescaped ampersands
+    .replace(/<\s*script/gi, '&lt;script'); // Prevent script tags
+  
+  // Replace potentially problematic inline styles that might break layout
+  htmlContent = htmlContent
+    .replace(/position\s*:\s*fixed/gi, 'position: relative')
+    .replace(/position\s*:\s*absolute/gi, 'position: relative')
+    .replace(/width\s*:\s*\d+vw/gi, 'width: 100%')
+    .replace(/height\s*:\s*\d+vh/gi, 'height: auto');
+  
+  return htmlContent;
 }
 
 // Helper function to generate default resume content
