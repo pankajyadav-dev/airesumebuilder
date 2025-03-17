@@ -311,13 +311,32 @@ function ResumeEditor() {
     setShowShareEmailModal(true);
   };
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     if (!id || id === 'new') {
       setError('Please save your resume before downloading');
       setTimeout(() => setError(''), 3000);
       return;
     }
-    window.open(`http://localhost:3000/api/resume/${id}/pdf`, '_blank');
+    try {
+      const response = await axios.get(`/api/resume/${id}/pdf`, {
+        responseType: 'blob'
+      });
+      
+      // Create a blob from the PDF data
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${title || 'Resume'}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error downloading PDF:', err);
+      setError('Failed to download PDF. Please try again.');
+      setTimeout(() => setError(''), 3000);
+    }
   };
 
   if (loading && !content && step !== 1) {
