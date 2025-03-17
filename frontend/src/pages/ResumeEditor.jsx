@@ -394,13 +394,6 @@ function ResumeEditor() {
                 </div>
                 <div className="flex flex-wrap gap-3 w-full lg:w-auto">
                   <button
-                    onClick={toggleHtmlMode}
-                    className="flex-1 lg:flex-none bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-3 rounded-lg text-sm font-medium
-                             hover:from-gray-700 hover:to-gray-800 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
-                  >
-                    {htmlMode ? 'Preview Mode' : 'HTML Mode'}
-                  </button>
-                  <button
                     onClick={() => setShowAIPanel(!showAIPanel)}
                     className="flex-1 lg:flex-none bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-lg text-sm font-medium
                              hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
@@ -477,7 +470,7 @@ function ResumeEditor() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className={`col-span-3 lg:col-span-${showAIPanel ? 2 : 3}`}>
                 <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-2xl">
-                  {htmlMode || editorFailed ? (
+                  {editorFailed ? (
                     <div className="p-6">
                       <textarea
                         value={content}
