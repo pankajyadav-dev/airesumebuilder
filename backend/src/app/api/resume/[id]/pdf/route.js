@@ -4,6 +4,8 @@ import Resume from '../../../../../models/resumeModel';
 import { getServerAuthSession } from '../../../../../middleware/auth';
 import { corsMiddleware, corsHandler } from '../../../../../middleware/cors';
 import puppeteer from 'puppeteer';
+import path from 'path';
+import fs from 'fs';
 
 async function generateResumePdf(request, { params }) {
   try {
@@ -58,10 +60,10 @@ async function generateResumePdf(request, { params }) {
     }
     
     // Generate PDF from HTML
-    console.log('PDF Generation: Launching Puppeteer');
+    console.log('PDF Generation: Setting up Puppeteer');
     let browser;
     try {
-      // Configure Puppeteer launch options based on platform
+      // Configure Puppeteer launch options
       const launchOptions = {
         headless: 'new',
         args: [
@@ -77,28 +79,53 @@ async function generateResumePdf(request, { params }) {
         ]
       };
 
-      // Add executable path for Windows if Chrome is installed
-      if (process.platform === 'win32') {
+      // Use environment variable if provided
+      if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+        console.log('PDF Generation: Using Chrome from env variable:', process.env.PUPPETEER_EXECUTABLE_PATH);
+      }
+      // Otherwise detect Chrome on Windows
+      else if (process.platform === 'win32') {
         const possiblePaths = [
+          // Standard Chrome locations
           'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
           'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-          process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe'
+          process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
+          
+          // Edge as a fallback (compatible with Puppeteer)
+          'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+          'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+          
+          // Chrome Beta/Dev/Canary versions
+          process.env.LOCALAPPDATA + '\\Google\\Chrome Beta\\Application\\chrome.exe',
+          process.env.LOCALAPPDATA + '\\Google\\Chrome Dev\\Application\\chrome.exe',
+          process.env.LOCALAPPDATA + '\\Google\\Chrome SxS\\Application\\chrome.exe',
         ];
 
-        for (const path of possiblePaths) {
+        for (const chromePath of possiblePaths) {
           try {
-            const fs = require('fs');
-            if (fs.existsSync(path)) {
-              launchOptions.executablePath = path;
-              console.log('PDF Generation: Using Chrome at:', path);
+            if (fs.existsSync(chromePath)) {
+              launchOptions.executablePath = chromePath;
+              console.log('PDF Generation: Using Chrome at:', chromePath);
               break;
             }
           } catch (err) {
-            console.warn('PDF Generation: Could not check path:', path);
+            console.warn('PDF Generation: Could not check path:', chromePath, err.message);
           }
+        }
+        
+        // If no Chrome found, log warning but attempt to continue
+        if (!launchOptions.executablePath) {
+          console.warn('PDF Generation: No Chrome installation found. Attempting to use bundled Chromium.');
         }
       }
 
+      console.log('PDF Generation: Launching browser with options:', JSON.stringify({
+        headless: launchOptions.headless,
+        executablePath: launchOptions.executablePath || 'bundled',
+        platform: process.platform
+      }));
+      
       browser = await puppeteer.launch(launchOptions);
       
       console.log('PDF Generation: Creating new page');
@@ -113,23 +140,38 @@ async function generateResumePdf(request, { params }) {
       console.log('PDF Generation: Setting content');
       await page.setContent(htmlContent, { 
         waitUntil: 'networkidle0',
-        timeout: 30000 // 30 seconds timeout
+        timeout: 60000 // Increased timeout to 60 seconds
       });
       
       // Wait for any images to load
       await page.evaluate(() => {
-        return Promise.all(
-          Array.from(document.images).map(img => {
-            if (img.complete) return Promise.resolve();
-            return new Promise((resolve, reject) => {
-              img.onload = resolve;
-              img.onerror = reject;
-            });
-          })
-        );
+        return new Promise((resolve) => {
+          // If page is already loaded, resolve immediately
+          if (document.readyState === 'complete') {
+            resolve();
+            return;
+          }
+          
+          // Otherwise wait for load event
+          window.addEventListener('load', resolve);
+          
+          // Set a backup timeout in case load event doesn't fire
+          setTimeout(resolve, 10000);
+          
+          // Try to load all images
+          Array.from(document.images).forEach(img => {
+            if (!img.complete) {
+              img.onload = function() {};
+              img.onerror = function() {};
+            }
+          });
+        });
       }).catch(err => {
-        console.warn('PDF Generation: Some images failed to load:', err);
+        console.warn('PDF Generation: Page evaluation issue:', err.message);
       });
+      
+      // Add a small delay to ensure all rendering is complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       console.log('PDF Generation: Generating PDF');
       const pdfBuffer = await page.pdf({ 
@@ -140,7 +182,8 @@ async function generateResumePdf(request, { params }) {
           right: '20px',
           bottom: '20px',
           left: '20px'
-        }
+        },
+        timeout: 60000 // 60 seconds timeout for PDF generation
       });
       
       if (!pdfBuffer || pdfBuffer.length === 0) {
@@ -162,12 +205,14 @@ async function generateResumePdf(request, { params }) {
         },
       });
     } catch (puppeteerError) {
-      console.error('PDF Generation: Puppeteer error:', puppeteerError);
+      console.error('PDF Generation: Puppeteer error:', puppeteerError.message);
+      console.error('PDF Generation: Error stack:', puppeteerError.stack);
       return NextResponse.json(
         { 
           success: false, 
           message: 'Failed to generate PDF', 
           error: puppeteerError.message,
+          errorType: puppeteerError.name,
           stack: process.env.NODE_ENV === 'development' ? puppeteerError.stack : undefined
         },
         { status: 500 }
@@ -175,16 +220,22 @@ async function generateResumePdf(request, { params }) {
     } finally {
       if (browser) {
         console.log('PDF Generation: Closing browser');
-        await browser.close();
+        try {
+          await browser.close();
+        } catch (closeError) {
+          console.warn('PDF Generation: Error closing browser:', closeError.message);
+        }
       }
     }
   } catch (error) {
-    console.error('PDF Generation: Error:', error);
+    console.error('PDF Generation: Error:', error.message);
+    console.error('PDF Generation: Error stack:', error.stack);
     return NextResponse.json(
       { 
         success: false, 
         message: 'Failed to generate PDF', 
         error: error.message,
+        errorType: error.name,
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       },
       { status: 500 }
@@ -197,4 +248,4 @@ export const GET = corsMiddleware(generateResumePdf);
 // Handle OPTIONS for CORS preflight
 export function OPTIONS(request) {
   return corsHandler(request);
-} 
+}
