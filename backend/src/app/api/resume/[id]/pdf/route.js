@@ -7,9 +7,11 @@ import puppeteer from 'puppeteer';
 
 async function generateResumePdf(request, { params }) {
   try {
+    console.log('PDF Generation: Starting process');
     const session = await getServerAuthSession(request);
     
     if (!session) {
+      console.log('PDF Generation: Not authenticated');
       return NextResponse.json(
         { success: false, message: 'Not authenticated' },
         { status: 401 }
@@ -17,8 +19,10 @@ async function generateResumePdf(request, { params }) {
     }
     
     const { id } = params;
+    console.log('PDF Generation: Processing resume ID:', id);
     
     if (!id) {
+      console.log('PDF Generation: Missing resume ID');
       return NextResponse.json(
         { success: false, message: 'Resume ID is required' },
         { status: 400 }
@@ -26,6 +30,7 @@ async function generateResumePdf(request, { params }) {
     }
     
     await connectDB();
+    console.log('PDF Generation: Connected to database');
     
     // Get the resume
     const resume = await Resume.findOne({
@@ -34,46 +39,79 @@ async function generateResumePdf(request, { params }) {
     });
     
     if (!resume) {
+      console.log('PDF Generation: Resume not found');
       return NextResponse.json(
         { success: false, message: 'Resume not found' },
         { status: 404 }
       );
     }
     
+    console.log('PDF Generation: Resume found, content length:', resume.content.length);
     const htmlContent = resume.content;
     
     // Generate PDF from HTML
-    const browser = await puppeteer.launch({ headless: 'new' });
-    const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
-    
-    // Convert to PDF
-    const pdfBuffer = await page.pdf({ 
-      format: 'A4',
-      printBackground: true,
-      margin: {
-        top: '20px',
-        right: '20px',
-        bottom: '20px',
-        left: '20px'
-      }
-    });
-    await browser.close();
-    
-    // Return PDF as a downloadable file
-    const response = new NextResponse(pdfBuffer, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${resume.title || 'Resume'}.pdf"`,
-      },
+    console.log('PDF Generation: Launching Puppeteer');
+    const browser = await puppeteer.launch({ 
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
     });
     
-    return response;
+    try {
+      console.log('PDF Generation: Creating new page');
+      const page = await browser.newPage();
+      
+      // Set viewport to A4 size
+      await page.setViewport({
+        width: 794, // A4 width in pixels at 96 DPI
+        height: 1123 // A4 height in pixels at 96 DPI
+      });
+      
+      console.log('PDF Generation: Setting content');
+      await page.setContent(htmlContent, { 
+        waitUntil: 'networkidle0',
+        timeout: 30000 // 30 seconds timeout
+      });
+      
+      console.log('PDF Generation: Generating PDF');
+      const pdfBuffer = await page.pdf({ 
+        format: 'A4',
+        printBackground: true,
+        margin: {
+          top: '20px',
+          right: '20px',
+          bottom: '20px',
+          left: '20px'
+        }
+      });
+      
+      console.log('PDF Generation: PDF generated successfully');
+      
+      // Return PDF as a downloadable file
+      const response = new NextResponse(pdfBuffer, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="${resume.title || 'Resume'}.pdf"`,
+        },
+      });
+      
+      return response;
+    } catch (puppeteerError) {
+      console.error('PDF Generation: Puppeteer error:', puppeteerError);
+      throw puppeteerError;
+    } finally {
+      console.log('PDF Generation: Closing browser');
+      await browser.close();
+    }
   } catch (error) {
-    console.error('Generate resume PDF error:', error);
+    console.error('PDF Generation: Error:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to generate PDF', error: error.message },
+      { 
+        success: false, 
+        message: 'Failed to generate PDF', 
+        error: error.message,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      },
       { status: 500 }
     );
   }
