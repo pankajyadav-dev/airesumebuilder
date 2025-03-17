@@ -8,6 +8,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import ResumeEditor from './pages/ResumeEditor';
 import Profile from './pages/Profile';
+import Account from './pages/Account';
 import NotFound from './pages/NotFound';
 
 // Components
@@ -115,6 +116,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/account" 
+            element={
+              <ProtectedRoute>
+                <Account />
               </ProtectedRoute>
             } 
           />

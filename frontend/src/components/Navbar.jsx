@@ -74,6 +74,15 @@ function Navbar() {
                   >
                     Profile
                   </Link>
+                  <Link
+                    to="/account"
+                    className={`inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-all duration-200 
+                    ${isActive('/account') 
+                      ? 'border-blue-500 text-gray-900 font-semibold' 
+                      : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}
+                  >
+                    Account Settings
+                  </Link>
                 </>
               )}
             </div>
@@ -203,6 +212,17 @@ function Navbar() {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Profile
+              </Link>
+              <Link
+                to="/account"
+                className={`block pl-3 pr-4 py-2 text-base font-medium transition duration-150 ease-in-out ${
+                  isActive('/account')
+                    ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-l-4 border-blue-500 text-blue-700 font-semibold'
+                    : 'border-l-4 border-transparent text-gray-600 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-800'
+                }`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Account Settings
               </Link>
             </>
           )}

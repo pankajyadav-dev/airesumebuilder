@@ -172,6 +172,24 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Delete account function
+  const deleteAccount = async () => {
+    if (!apiAvailable) {
+      throw new Error('API is not available. Please check your connection.');
+    }
+
+    try {
+      setError(null);
+      await axios.delete('/api/user/delete');
+      // After successful deletion, logout the user
+      await logout();
+    } catch (err) {
+      console.error('Delete account error:', err);
+      setError(err.response?.data?.message || 'Failed to delete account');
+      throw err;
+    }
+  };
+
   const value = {
     user,
     token,
@@ -182,6 +200,7 @@ export function AuthProvider({ children }) {
     login,
     register,
     logout,
+    deleteAccount,
     isAuthenticated: !!user
   };
 

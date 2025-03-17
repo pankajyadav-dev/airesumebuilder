@@ -53,9 +53,11 @@ An advanced web application that allows users to create professional resumes eff
 
 4. Create a `.env.local` file in the backend directory with the following variables:
    ```
-   MONGODB_URI=your_mongodb_connection_string
-   JWT_SECRET=your_jwt_secret_key
-   GEMINI_API_KEY=your_gemini_api_key
+   GEMINI_API_KEY=AIzaSyDZCTMU4v0qQRK11ilgF3LfLcUsj7Oppno
+   EMAIL_USER=siri963690@gmail.com
+   EMAIL_PASSWORD=npso otex mvuk cbhe
+   MONGODB_URI=mongodb+srv://siri963690:9636902439%40Siri@cluster111.ka2ei.mongodb.net/resumebuilder?retryWrites=true&w=majority&appName=Cluster111
+
    ```
 
 ### Running the Application

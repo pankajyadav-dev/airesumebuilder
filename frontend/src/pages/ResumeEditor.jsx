@@ -36,6 +36,9 @@ function ResumeEditor() {
   const [htmlMode, setHtmlMode] = useState(false);
   const [editorFailed, setEditorFailed] = useState(false);
   const [showShareEmailModal, setShowShareEmailModal] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [isAnalyzingATS, setIsAnalyzingATS] = useState(false);
+  const [isCheckingGrammar, setIsCheckingGrammar] = useState(false);
 
   useEffect(() => {
     if (id && id !== 'new') {
@@ -112,13 +115,13 @@ function ResumeEditor() {
 
   const generateAIResume = async () => {
     try {
-      setLoading(true);
+      setIsGeneratingAI(true);
       setError('');
       
       // Validate required fields
       if (!jobTitle) {
         setError('Please enter a job title to generate an AI resume');
-        setLoading(false);
+        setIsGeneratingAI(false);
         return;
       }
       
@@ -216,13 +219,13 @@ function ResumeEditor() {
       console.error('Error generating AI resume:', err);
       setError('Failed to generate AI resume. ' + (err.response?.data?.message || ''));
     } finally {
-      setLoading(false);
+      setIsGeneratingAI(false);
     }
   };
 
   const checkGrammar = async () => {
     try {
-      setLoading(true);
+      setIsCheckingGrammar(true);
       setError('');
       
       const response = await axios.post('/api/ai/check-grammar', {
@@ -241,13 +244,13 @@ function ResumeEditor() {
       console.error('Error checking grammar:', err);
       setError('Failed to check grammar: ' + (err.response?.data?.message || err.message));
     } finally {
-      setLoading(false);
+      setIsCheckingGrammar(false);
     }
   };
 
   const analyzeATS = async () => {
     try {
-      setLoading(true);
+      setIsAnalyzingATS(true);
       setError('');
       
       const response = await axios.post('/api/ai/analyze-ats', {
@@ -267,7 +270,7 @@ function ResumeEditor() {
       console.error('Error analyzing ATS:', err);
       setError('Failed to analyze ATS compatibility: ' + (err.response?.data?.message || err.message));
     } finally {
-      setLoading(false);
+      setIsAnalyzingATS(false);
     }
   };
 
@@ -658,12 +661,12 @@ function ResumeEditor() {
                           <div className="space-y-3">
                             <button
                               onClick={generateAIResume}
-                              disabled={loading || !jobTitle}
+                              disabled={isGeneratingAI || !jobTitle}
                               className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-3 rounded-lg text-sm font-medium
                                        hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 transition-all duration-300 transform hover:scale-105
                                        shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
                             >
-                              {loading ? (
+                              {isGeneratingAI ? (
                                 <>
                                   <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"/>
                                   <span>Generating...</span>
@@ -679,12 +682,12 @@ function ResumeEditor() {
                             </button>
                             <button
                               onClick={analyzeATS}
-                              disabled={loading}
+                              disabled={isAnalyzingATS}
                               className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white px-4 py-3 rounded-lg text-sm font-medium
                                        hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 transition-all duration-300 transform hover:scale-105
                                        shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
                             >
-                              {loading ? (
+                              {isAnalyzingATS ? (
                                 <>
                                   <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"/>
                                   <span>Analyzing...</span>
@@ -700,12 +703,12 @@ function ResumeEditor() {
                             </button>
                             <button
                               onClick={checkGrammar}
-                              disabled={loading}
+                              disabled={isCheckingGrammar}
                               className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white px-4 py-3 rounded-lg text-sm font-medium
                                        hover:from-green-700 hover:to-green-600 disabled:opacity-50 transition-all duration-300 transform hover:scale-105
                                        shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
                             >
-                              {loading ? (
+                              {isCheckingGrammar ? (
                                 <>
                                   <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"/>
                                   <span>Checking...</span>
