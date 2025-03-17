@@ -3,7 +3,9 @@ import connectDB from '../../../../../lib/mongodb';
 import Resume from '../../../../../models/resumeModel';
 import { getServerAuthSession } from '../../../../../middleware/auth';
 import { corsMiddleware, corsHandler } from '../../../../../middleware/cors';
-import puppeteer from 'puppeteer';
+import { jsPDF } from 'jspdf';
+import { JSDOM } from 'jsdom';
+import html2canvas from 'html2canvas';
 
 async function generateResumePdf(request, { params }) {
   try {
@@ -57,126 +59,59 @@ async function generateResumePdf(request, { params }) {
       );
     }
     
-    // Generate PDF from HTML
-    console.log('PDF Generation: Launching Puppeteer');
-    let browser;
+    console.log('PDF Generation: Creating PDF document');
+    
     try {
-      // Configure Puppeteer launch options based on platform
-      const launchOptions = {
-        headless: 'new',
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--disable-software-rasterizer',
-          '--disable-extensions',
-          '--disable-accelerated-2d-canvas',
-          '--disable-infobars',
-          '--window-size=1920,1080'
-        ]
-      };
-
-      // Add executable path for Windows if Chrome is installed
-      if (process.platform === 'win32') {
-        const possiblePaths = [
-          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-          process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe'
-        ];
-
-        for (const path of possiblePaths) {
-          try {
-            const fs = require('fs');
-            if (fs.existsSync(path)) {
-              launchOptions.executablePath = path;
-              console.log('PDF Generation: Using Chrome at:', path);
-              break;
-            }
-          } catch (err) {
-            console.warn('PDF Generation: Could not check path:', path);
-          }
-        }
-      }
-
-      browser = await puppeteer.launch(launchOptions);
-      
-      console.log('PDF Generation: Creating new page');
-      const page = await browser.newPage();
-      
-      // Set viewport to A4 size
-      await page.setViewport({
-        width: 794, // A4 width in pixels at 96 DPI
-        height: 1123 // A4 height in pixels at 96 DPI
+      // Initialize jsPDF
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
       });
       
-      console.log('PDF Generation: Setting content');
-      await page.setContent(htmlContent, { 
-        waitUntil: 'networkidle0',
-        timeout: 30000 // 30 seconds timeout
-      });
+      // Create a virtual DOM to parse the HTML
+      const { window } = new JSDOM(htmlContent);
+      const document = window.document;
       
-      // Wait for any images to load
-      await page.evaluate(() => {
-        return Promise.all(
-          Array.from(document.images).map(img => {
-            if (img.complete) return Promise.resolve();
-            return new Promise((resolve, reject) => {
-              img.onload = resolve;
-              img.onerror = reject;
-            });
-          })
-        );
-      }).catch(err => {
-        console.warn('PDF Generation: Some images failed to load:', err);
-      });
+      // Extract text content, preserving basic structure
+      const content = document.body.textContent || "";
       
-      console.log('PDF Generation: Generating PDF');
-      const pdfBuffer = await page.pdf({ 
-        format: 'A4',
-        printBackground: true,
-        margin: {
-          top: '20px',
-          right: '20px',
-          bottom: '20px',
-          left: '20px'
-        }
-      });
+      // Set some formatting options
+      doc.setFont('helvetica');
+      doc.setFontSize(12);
       
-      if (!pdfBuffer || pdfBuffer.length === 0) {
-        throw new Error('Generated PDF is empty');
-      }
+      // Add content to PDF with automatic pagination
+      const splitText = doc.splitTextToSize(content, 180); // 210mm - margins
+      doc.text(splitText, 15, 20);
       
-      console.log('PDF Generation: PDF generated successfully, size:', pdfBuffer.length);
+      // Convert to buffer
+      const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+      
+      console.log('PDF Generation: PDF created successfully, size:', pdfBuffer.length);
       
       // Return PDF as a downloadable file
       return new NextResponse(pdfBuffer, {
         status: 200,
         headers: {
           'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="${resume.title || 'Resume'}.pdf"`,
+          'Content-Disposition': `attachment; filename="${encodeURIComponent(resume.title || 'Resume')}.pdf"`,
           'Content-Length': pdfBuffer.length.toString(),
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
           'Expires': '0'
         },
       });
-    } catch (puppeteerError) {
-      console.error('PDF Generation: Puppeteer error:', puppeteerError);
+    } catch (pdfError) {
+      console.error('PDF Generation: Error creating PDF:', pdfError);
       return NextResponse.json(
         { 
           success: false, 
           message: 'Failed to generate PDF', 
-          error: puppeteerError.message,
-          stack: process.env.NODE_ENV === 'development' ? puppeteerError.stack : undefined
+          error: pdfError.message,
+          stack: process.env.NODE_ENV === 'development' ? pdfError.stack : undefined
         },
         { status: 500 }
       );
-    } finally {
-      if (browser) {
-        console.log('PDF Generation: Closing browser');
-        await browser.close();
-      }
     }
   } catch (error) {
     console.error('PDF Generation: Error:', error);
@@ -197,4 +132,4 @@ export const GET = corsMiddleware(generateResumePdf);
 // Handle OPTIONS for CORS preflight
 export function OPTIONS(request) {
   return corsHandler(request);
-} 
+}
