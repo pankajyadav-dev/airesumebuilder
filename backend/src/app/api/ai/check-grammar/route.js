@@ -52,16 +52,22 @@ async function checkGrammarHandler(request) {
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_gemini_api_key') {
       const mockAnalysisResult = {
         score: 85,
-        suggestions: [
+        summary: "This resume is generally well-written with a few grammatical issues. Addressing these minor issues will enhance the overall professionalism of your resume.",
+        errors: [
           {
-            text: "I am responsible for managing team",
-            issue: "Missing article before 'team'",
-            suggestion: "Consider adding 'the' or 'a' before 'team'"
+            original: "I am responsible for managing team",
+            correction: "I am responsible for managing the team",
+            explanation: "Missing article before 'team'"
           },
           {
-            text: "Led team of 5 developers",
-            issue: "Missing article before 'team'",
-            suggestion: "Consider adding 'a' before 'team'"
+            original: "Led team of 5 developers",
+            correction: "Led a team of 5 developers",
+            explanation: "Missing article before 'team'"
+          },
+          {
+            original: "Implemented software that increased efficiency",
+            correction: "Implemented software that increased efficiency by 20%",
+            explanation: "Consider quantifying achievements for more impact"
           }
         ],
         styleRecommendations: [
@@ -90,10 +96,11 @@ async function checkGrammarHandler(request) {
     
     Provide a JSON response with:
     - score: grammar score from 0-100
-    - suggestions: array of objects with {text, issue, suggestion} where text is the problematic text, issue describes the problem, and suggestion provides guidance on how to fix it
-    - styleRecommendations: array of writing style improvement tips
+    - summary: a brief overall assessment of the writing quality
+    - errors: array of objects with {original, correction, explanation} where original is the problematic text, correction is the suggested fix, and explanation describes the grammar rule or issue
+    - styleRecommendations: array of writing style improvement tips specific to resumes
     
-    IMPORTANT: Do NOT provide direct corrections or rewrite the text. Only point out issues and give suggestions for improvement.`;
+    IMPORTANT: Focus on grammar, spelling, clarity, and professional writing standards for resumes.`;
     
     try {
       // Initialize the Google Generative AI client

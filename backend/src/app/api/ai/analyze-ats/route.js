@@ -56,14 +56,31 @@ async function analyzAtsHandler(request) {
     
     Provide a JSON response with:
     - score: number from 0-100
-    - issues: array of key issues
-    - recommendations: array of improvements
-    - keywords: array of missing keywords`;
+    - keywords: array of keywords found in the resume
+    - missingKeywords: array of important keywords missing from the resume ${jobDescription ? 'based on the job description' : 'for this type of role'}
+    - issues: array of key ATS optimization issues
+    - recommendations: array of specific improvements
+    - formattingIssues: array of formatting problems that might affect ATS parsing
+    
+    Focus on keyword optimization, formatting for ATS systems, and professional presentation.`;
     
     // Mock response for development/testing if Gemini API key is not available
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_gemini_api_key') {
       const mockAnalysisResult = {
         score: 75,
+        keywords: [
+          "project management",
+          "team leadership",
+          "strategic planning", 
+          "data analysis",
+          "problem solving"
+        ],
+        missingKeywords: [
+          "cross-functional collaboration",
+          "budget management",
+          "stakeholder management",
+          "continuous improvement"
+        ],
         issues: [
           "Resume lacks proper keyword density for ATS",
           "Some formatting elements might interfere with parsing",
@@ -72,13 +89,13 @@ async function analyzAtsHandler(request) {
         recommendations: [
           "Add more industry-specific keywords",
           "Use standard section headings (Experience, Education, Skills)",
-          "Ensure bullet points are formatted consistently"
+          "Ensure bullet points are formatted consistently",
+          "Quantify your achievements with specific metrics and numbers"
         ],
-        keywords: [
-          "project management",
-          "stakeholder communication",
-          "agile methodology",
-          "cross-functional teams"
+        formattingIssues: [
+          "Inconsistent spacing detected",
+          "Consider using standard section headers",
+          "Multiple columns may cause parsing issues"
         ]
       };
       
