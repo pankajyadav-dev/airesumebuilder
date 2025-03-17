@@ -81,6 +81,21 @@ async function generateResumePdf(request, { params }) {
         timeout: 30000 // 30 seconds timeout
       });
       
+      // Wait for any images to load
+      await page.evaluate(() => {
+        return Promise.all(
+          Array.from(document.images).map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+            });
+          })
+        );
+      }).catch(err => {
+        console.warn('PDF Generation: Some images failed to load:', err);
+      });
+      
       console.log('PDF Generation: Generating PDF');
       const pdfBuffer = await page.pdf({ 
         format: 'A4',
@@ -106,6 +121,9 @@ async function generateResumePdf(request, { params }) {
           'Content-Type': 'application/pdf',
           'Content-Disposition': `attachment; filename="${resume.title || 'Resume'}.pdf"`,
           'Content-Length': pdfBuffer.length.toString(),
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         },
       });
     } catch (puppeteerError) {

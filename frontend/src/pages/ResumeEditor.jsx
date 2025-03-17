@@ -326,6 +326,22 @@ function ResumeEditor() {
         }
       });
       
+      // Check if the response is an error message
+      if (response.data instanceof Blob && response.data.size < 100) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const errorData = JSON.parse(reader.result);
+            throw new Error(errorData.message || 'Failed to generate PDF');
+          } catch (e) {
+            console.error('Error parsing error response:', e);
+            throw new Error('Failed to generate PDF');
+          }
+        };
+        reader.readAsText(response.data);
+        return;
+      }
+      
       if (!response.data) {
         throw new Error('No PDF data received');
       }
