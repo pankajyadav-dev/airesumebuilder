@@ -5,6 +5,7 @@ import User from '../../../../models/userModel';
 import { getServerAuthSession } from '../../../../middleware/auth';
 import { corsMiddleware, corsHandler } from '../../../../middleware/cors';
 import nodemailer from 'nodemailer';
+import puppeteer from 'puppeteer';
 
 async function shareEmailHandler(request) {
   try {
@@ -62,7 +63,7 @@ async function shareEmailHandler(request) {
     
     // Prepare email content
     const emailSubject = subject || `${user.name} has shared their resume with you`;
-    const emailMessage = message || `Hello,\n\n${user.name} has shared their resume with you. Please find it attached.\n\nBest regards,\n${user.name}`;
+    const emailMessage = message || `Hello,\n\n${user.name} has shared their resume with you. Please find it attached as a PDF.\n\nBest regards,\n${user.name}`;
     
     // Convert HTML content to PDF (simplified for now - in production you'd use a proper HTML to PDF converter)
     const htmlContent = resume.content;
@@ -78,6 +79,15 @@ async function shareEmailHandler(request) {
         });
       }
       
+      // Generate PDF from HTML
+      const browser = await puppeteer.launch({ headless: 'new' });
+      const page = await browser.newPage();
+      await page.setContent(htmlContent, { waitUntil: 'domcontentloaded' });
+      
+      // Convert to PDF
+      const pdfBuffer = await page.pdf({ format: 'A4' });
+      await browser.close();
+      
       await transporter.sendMail({
         from: process.env.EMAIL_USER,
         to: recipientEmail,
@@ -85,15 +95,12 @@ async function shareEmailHandler(request) {
         text: emailMessage,
         html: `<div>
           <p>${emailMessage.replace(/\n/g, '<br>')}</p>
-          <div style="margin-top: 20px; padding: 20px; border: 1px solid #eee;">
-            ${htmlContent}
-          </div>
         </div>`,
         attachments: [
           {
-            filename: `${resume.title || 'Resume'}.html`,
-            content: htmlContent,
-            contentType: 'text/html'
+            filename: `${resume.title || 'Resume'}.pdf`,
+            content: pdfBuffer,
+            contentType: 'application/pdf'
           }
         ]
       });
