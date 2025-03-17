@@ -81,7 +81,7 @@ function AppContent() {
     <div className="flex flex-col min-h-screen bg-gray-50">
       <Navbar />
       {!apiAvailable && <ApiErrorBanner />}
-      <main className="flex-grow">
+      <main className="flex-grow pt-16">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/login" element={<Login />} />
