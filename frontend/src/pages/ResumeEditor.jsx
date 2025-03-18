@@ -40,6 +40,16 @@ function ResumeEditor() {
   const [isAnalyzingATS, setIsAnalyzingATS] = useState(false);
   const [isCheckingGrammar, setIsCheckingGrammar] = useState(false);
 
+  const handleInit = (evt, editor) => {
+    editorRef.current = editor;
+    
+    // Set up a blur event listener instead of tracking every change
+    editor.on('blur', () => {
+      if (editor.getContent() !== content) {
+        setContent(editor.getContent());
+      }
+    });
+  }
   useEffect(() => {
     if (id && id !== 'new') {
       fetchResume();
@@ -560,9 +570,9 @@ function ResumeEditor() {
                     </div>
                   ) : (
                     <div className="relative">
-                      <Editor
+                        <Editor
                         apiKey="w9wb2nr9fpk741lb6kzvabnhlzj7aimkgqbt1jdvnwi9qgky"
-                        onInit={(evt, editor) => editorRef.current = editor}
+                        onInit={handleInit}
                         initialValue={content}
                         inline={false}
                         init={{
@@ -571,7 +581,7 @@ function ResumeEditor() {
                           branding: false,
                           promotion: false,
                           plugins: [
-                            'lists', 'link', 'image', 'preview', 
+                            'lists', 'link', 'image', 'preview',
                             'code', 'table', 'help', 'wordcount'
                           ],
                           toolbar: 'undo redo | formatselect | ' +
@@ -582,8 +592,7 @@ function ResumeEditor() {
                           skin: 'oxide',
                           resize: false
                         }}
-                        onEditorChange={(newContent) => setContent(newContent)}
-                      />
+                        />
                       <div className="absolute top-0 left-0 right-0 text-center p-4 bg-yellow-100 text-yellow-800 
                                     rounded-t-lg opacity-0 transition-opacity duration-300 shadow-lg" 
                            style={{ opacity: editorRef.current ? 0 : 0.95 }}>
