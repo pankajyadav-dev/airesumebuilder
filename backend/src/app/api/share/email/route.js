@@ -96,7 +96,7 @@ async function shareEmailHandler(request) {
             max-width: 210mm;
             margin: 0 auto;
             padding: 20px;
-            font-size: 12pt;
+            font-size: 12pt !important;
           }
           
           h1 {
@@ -122,25 +122,25 @@ async function shareEmailHandler(request) {
           }
           
           p {
-            font-size: 12pt;
+            font-size: 12pt !important;
             margin-bottom: 6pt;
           }
           
           ul {
-            margin-top: 6pt;
+            margin-top: 6pt ;
             margin-bottom: 12pt;
             padding-left: 20pt;
           }
           
           li {
-            font-size: 12pt;
+            font-size: 12pt !important;
             margin-bottom: 4pt;
           }
           
           a {
             color: #007bff;
             text-decoration: none;
-            font-size: 12pt;
+            font-size: 12pt !important; 
           }
           
           .resume-section {

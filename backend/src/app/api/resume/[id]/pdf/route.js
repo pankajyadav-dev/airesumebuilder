@@ -113,29 +113,29 @@ async function generateResumeDoc(request, context) {
           }
           
           p {
-            font-size: 12pt;
+            font-size: 12pt !important;
             margin-bottom: 6pt;
           }
           
           ul {
-            margin-top: 6pt;
+            margin-top: 12pt !important;
             margin-bottom: 12pt;
             padding-left: 20pt;
           }
           
           li {
-            font-size: 12pt;
+            font-size: 12pt !important; 
             margin-bottom: 4pt;
           }
           
           a {
             color: #007bff;
             text-decoration: none;
-            font-size: 12pt;
+            font-size: 12pt !important;
           }
           
           .resume-section {
-            margin-bottom: 16pt;
+            margin-bottom: 16pt !important;
           }
           
           /* Force all elements to have the same font size */
