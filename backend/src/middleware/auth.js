@@ -1,48 +1,4 @@
-// import jwt from 'jsonwebtoken';
-// import { cookies } from 'next/headers';
 
-// export function getServerAuthSession() {
-//   const cookieStore = cookies();
-//   const token = cookieStore.get('token')?.value;
-  
-//   if (!token) {
-//     return null;
-//   }
-  
-//   try {
-//     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-//     return decoded;
-//   } catch (error) {
-//     return null;
-//   }
-// }
-
-// export async function authMiddleware(request) {
-//   const session = getServerAuthSession();
-  
-//   if (!session) {
-//     return new Response(JSON.stringify({ message: 'Unauthorized' }), {
-//       status: 401,
-//       headers: {
-//         'Content-Type': 'application/json',
-//       },
-//     });
-//   }
-  
-//   request.user = session;
-// }
-
-// export function withAuth(handler) {
-//   return async function(request, ...args) {
-//     const authResult = await authMiddleware(request);
-    
-//     if (authResult instanceof Response) {
-//       return authResult;
-//     }
-    
-//     return handler(request, ...args);
-//   };
-// } 
 import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 
