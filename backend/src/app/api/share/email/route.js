@@ -142,7 +142,11 @@ async function shareEmailHandler(request) {
             text-decoration: none;
             font-size: 12pt !important; 
           }
-          
+        div {
+            font-size: 12pt !important;
+            margin-top: 0pt !important;
+            margin-bottom: 0pt !important;
+            }
           .resume-section {
             margin-bottom: 16pt;
           }

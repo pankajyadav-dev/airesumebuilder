@@ -87,7 +87,7 @@ async function generateResumeDoc(request, context) {
             max-width: 210mm;
             margin: 0 auto;
             padding: 20px;
-            font-size: 12pt;
+            font-size: 12pt !important;
           }
           
           h1 {
@@ -118,7 +118,7 @@ async function generateResumeDoc(request, context) {
           }
           
           ul {
-            margin-top: 12pt !important;
+            margin-top: 12pt ;
             margin-bottom: 12pt;
             padding-left: 20pt;
           }
