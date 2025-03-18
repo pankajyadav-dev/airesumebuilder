@@ -324,87 +324,62 @@ function ResumeEditor() {
     setShowShareEmailModal(true);
   };
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadDocument = async () => {
     if (!id || id === 'new') {
       setError('Please save your resume before downloading');
       setTimeout(() => setError(''), 3000);
       return;
     }
     try {
-      console.log('Downloading PDF for resume ID:', id);
-      const response = await axios.get(`/api/resume/${id}/pdf`, {
+      console.log('Downloading Word document for resume ID:', id);
+      
+      // Show loading indicator or message
+      setError('Generating document, please wait...');
+      
+      const response = await axios.get(`/api/resume/${id}/pdf?format=docx`, {
         responseType: 'blob',
         headers: {
-          'Accept': 'application/pdf'
+          'Accept': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         }
       });
       
-      // Check if the response is an error message
-      if (response.data instanceof Blob && response.data.size < 100) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          try {
-            const errorData = JSON.parse(reader.result);
-            throw new Error(errorData.message || 'Failed to generate PDF');
-          } catch (e) {
-            console.error('Error parsing error response:', e);
-            throw new Error('Failed to generate PDF');
-          }
-        };
-        reader.readAsText(response.data);
-        return;
+      // Clear the loading message
+      setError('');
+      
+      if (!response.data || response.data.size === 0) {
+        throw new Error('No document data received');
       }
       
-      if (!response.data) {
-        throw new Error('No PDF data received');
-      }
+      console.log('Word document data received, size:', response.data.size);
       
-      console.log('PDF data received, size:', response.data.size);
+      // Create a blob from the document data
+      const blob = new Blob([response.data], { 
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+      });
       
-      // Create a blob from the PDF data
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      // Create a download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${title || 'Resume'}.pdf`);
+      link.setAttribute('download', `${title || 'Resume'}.docx`);
       document.body.appendChild(link);
       link.click();
       link.remove();
+      
+      // Clean up the URL
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      console.error('Error downloading PDF:', err);
+      console.error('Error downloading Word document:', err);
       
-      // Check if the error response contains a message
-      let errorMessage = 'Failed to download PDF. Please try again.';
-      if (err.response) {
-        // The request was made and the server responded with a status code
-        // that falls out of the range of 2xx
-        console.error('Error response:', err.response.data);
-        if (err.response.data instanceof Blob) {
-          // Convert blob to text to read error message
-          const reader = new FileReader();
-          reader.onload = () => {
-            try {
-              const errorData = JSON.parse(reader.result);
-              errorMessage = errorData.message || errorMessage;
-            } catch (e) {
-              console.error('Error parsing error response:', e);
-            }
-          };
-          reader.readAsText(err.response.data);
-        } else if (typeof err.response.data === 'object') {
-          errorMessage = err.response.data.message || errorMessage;
-        }
-      } else if (err.request) {
-        // The request was made but no response was received
-        errorMessage = 'No response received from server. Please check your connection.';
-      } else {
-        // Something happened in setting up the request that triggered an Error
-        errorMessage = err.message || errorMessage;
+      let errorMessage = 'Failed to download Word document. Please try again.';
+      if (err.response && err.response.data && err.response.data.message) {
+        errorMessage = err.response.data.message;
+      } else if (err.message) {
+        errorMessage = err.message;
       }
       
       setError(errorMessage);
-      setTimeout(() => setError(''), 3000);
+      setTimeout(() => setError(''), 5000);
     }
   };
 
@@ -499,14 +474,14 @@ function ResumeEditor() {
                     <span>Share</span>
                   </button>
                   <button
-                    onClick={handleDownloadPdf}
+                    onClick={handleDownloadDocument}
                     className="flex-1 lg:flex-none bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-3 rounded-lg text-sm font-medium
                              hover:from-purple-700 hover:to-purple-600 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 flex items-center justify-center space-x-2"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <span>PDF</span>
+                    <span>Word</span>
                   </button>
                   <button
                     onClick={saveResume}

@@ -5,8 +5,7 @@ import User from '../../../../models/userModel';
 import { getServerAuthSession } from '../../../../middleware/auth';
 import { corsMiddleware, corsHandler } from '../../../../middleware/cors';
 import nodemailer from 'nodemailer';
-import puppeteer from 'puppeteer';
-import fs from 'fs';
+import HTMLtoDOCX from 'html-to-docx';
 
 async function shareEmailHandler(request) {
   try {
@@ -21,8 +20,11 @@ async function shareEmailHandler(request) {
       );
     }
     
-    const { resumeId, recipientEmail, subject, message } = await request.json();
-    console.log('Email Share: Processing resume ID:', resumeId, 'to recipient:', recipientEmail);
+    const { resumeId, recipientEmail, subject, message, documentFormat } = await request.json();
+    // Always use DOCX format regardless of what the client sends
+    const format = 'docx';
+    
+    console.log(`Email Share: Processing resume ID: ${resumeId}, to recipient: ${recipientEmail}, format: ${format}`);
     
     if (!resumeId || !recipientEmail) {
       console.log('Email Share: Missing required parameters');
@@ -69,12 +71,97 @@ async function shareEmailHandler(request) {
       }
     });
     
+    // Create a complete HTML document with proper styling
+    const htmlContent = resume.content;
+    // Preserve inline styles by wrapping content in a style-preserving container
+    const processedHtmlContent = `
+      <div class="resume-content" style="font-family: Arial, sans-serif;">
+        ${htmlContent}
+      </div>
+    `;
+    
+    // Create a complete HTML document with proper styling
+    const fullHtmlDocument = `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>${resume.title || 'Resume'}</title>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20px;
+            font-size: 12pt;
+          }
+          
+          h1 {
+            font-size: 12pt !important;
+            font-weight: bold;
+            margin-bottom: 16pt;
+            color: #0056b3;
+          }
+          
+          h2 {
+            font-size: 12pt !important;
+            font-weight: bold;
+            margin-top: 20pt;
+            margin-bottom: 10pt;
+            color: #0056b3;
+          }
+          
+          h3 {
+            font-size: 12pt !important;
+            font-weight: bold;
+            margin-bottom: 6pt;
+            color: #0056b3;
+          }
+          
+          p {
+            font-size: 12pt;
+            margin-bottom: 6pt;
+          }
+          
+          ul {
+            margin-top: 6pt;
+            margin-bottom: 12pt;
+            padding-left: 20pt;
+          }
+          
+          li {
+            font-size: 12pt;
+            margin-bottom: 4pt;
+          }
+          
+          a {
+            color: #007bff;
+            text-decoration: none;
+            font-size: 12pt;
+          }
+          
+          .resume-section {
+            margin-bottom: 16pt;
+          }
+          
+          /* Force all elements to have the same font size */
+          * {
+            font-size: 12pt !important;
+          }
+        </style>
+      </head>
+      <body>
+        ${processedHtmlContent}
+      </body>
+      </html>
+    `;
+    
     // Prepare email content
     const emailSubject = subject || `${user.name} has shared their resume with you`;
-    const emailMessage = message || `Hello,\n\n${user.name} has shared their resume with you. Please find it attached as a PDF.\n\nBest regards,\n${user.name}`;
-    
-    // Convert HTML content to PDF (simplified for now - in production you'd use a proper HTML to PDF converter)
-    const htmlContent = resume.content;
+    const emailMessage = message || `Hello,\n\n${user.name} has shared their resume with you. You can view the resume content below or in the attached file.\n\nBest regards,\n${user.name}`;
     
     // Send email
     try {
@@ -88,183 +175,142 @@ async function shareEmailHandler(request) {
         });
       }
       
-      console.log('Email Share: Setting up Puppeteer for PDF generation');
-      let browser;
+      let attachmentContent, attachmentFilename, attachmentContentType;
       
-      // Configure Puppeteer launch options
-      const launchOptions = {
-        headless: 'new',
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-gpu',
-          '--disable-software-rasterizer',
-          '--disable-extensions',
-          '--disable-accelerated-2d-canvas',
-          '--disable-infobars',
-          '--window-size=1920,1080'
-        ]
-      };
-
-      // Use environment variable if provided
-      if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-        launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-        console.log('Email Share: Using Chrome from env variable:', process.env.PUPPETEER_EXECUTABLE_PATH);
-      }
-      // Otherwise detect Chrome on Windows
-      else if (process.platform === 'win32') {
-        const possiblePaths = [
-          // Standard Chrome locations
-          'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-          'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-          process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe',
-          
-          // Edge as a fallback (compatible with Puppeteer)
-          'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-          'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-          
-          // Chrome Beta/Dev/Canary versions
-          process.env.LOCALAPPDATA + '\\Google\\Chrome Beta\\Application\\chrome.exe',
-          process.env.LOCALAPPDATA + '\\Google\\Chrome Dev\\Application\\chrome.exe',
-          process.env.LOCALAPPDATA + '\\Google\\Chrome SxS\\Application\\chrome.exe',
-        ];
-
-        for (const chromePath of possiblePaths) {
-          try {
-            if (fs.existsSync(chromePath)) {
-              launchOptions.executablePath = chromePath;
-              console.log('Email Share: Using Chrome at:', chromePath);
-              break;
-            }
-          } catch (err) {
-            console.warn('Email Share: Could not check path:', chromePath, err.message);
-          }
-        }
-        
-        // If no Chrome found, log warning but attempt to continue
-        if (!launchOptions.executablePath) {
-          console.warn('Email Share: No Chrome installation found. Attempting to use bundled Chromium.');
-        }
-      }
-
-      console.log('Email Share: Launching browser with options:', JSON.stringify({
-        headless: launchOptions.headless,
-        executablePath: launchOptions.executablePath || 'bundled',
-        platform: process.platform
-      }));
-      
+      // Always use DOCX format
+      console.log('Email Share: Converting to DOCX for email attachment');
       try {
-        browser = await puppeteer.launch(launchOptions);
-        
-        console.log('Email Share: Creating new page');
-        const page = await browser.newPage();
-        
-        // Set viewport to A4 size
-        await page.setViewport({
-          width: 794, // A4 width in pixels at 96 DPI
-          height: 1123 // A4 height in pixels at 96 DPI
-        });
-        
-        console.log('Email Share: Setting content');
-        await page.setContent(htmlContent, { 
-          waitUntil: 'networkidle0',
-          timeout: 60000 // Increased timeout to 60 seconds
-        });
-        
-        // Wait for any images to load
-        await page.evaluate(() => {
-          return new Promise((resolve) => {
-            // If page is already loaded, resolve immediately
-            if (document.readyState === 'complete') {
-              resolve();
-              return;
-            }
-            
-            // Otherwise wait for load event
-            window.addEventListener('load', resolve);
-            
-            // Set a backup timeout in case load event doesn't fire
-            setTimeout(resolve, 10000);
-            
-            // Try to load all images
-            Array.from(document.images).forEach(img => {
-              if (!img.complete) {
-                img.onload = function() {};
-                img.onerror = function() {};
-              }
-            });
-          });
-        }).catch(err => {
-          console.warn('Email Share: Page evaluation issue:', err.message);
-        });
-        
-        // Add a small delay to ensure all rendering is complete
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        console.log('Email Share: Generating PDF');
-        const pdfBuffer = await page.pdf({ 
-          format: 'A4',
-          printBackground: true,
+        // Configure document options
+        const options = {
           margin: {
-            top: '20px',
-            right: '20px',
-            bottom: '20px',
-            left: '20px'
+            top: 1440, // 1 inch in twip
+            right: 1440,
+            bottom: 1440,
+            left: 1440,
           },
-          timeout: 60000 // 60 seconds timeout for PDF generation
-        });
-        
-        if (!pdfBuffer || pdfBuffer.length === 0) {
-          throw new Error('Generated PDF is empty');
-        }
-        
-        console.log('Email Share: PDF generated successfully, size:', pdfBuffer.length);
-        
-        console.log('Email Share: Sending email to:', recipientEmail);
-        await transporter.sendMail({
-          from: process.env.EMAIL_USER,
-          to: recipientEmail,
-          subject: emailSubject,
-          text: emailMessage,
-          html: `<div>
-            <p>${emailMessage.replace(/\n/g, '<br>')}</p>
-          </div>`,
-          attachments: [
-            {
-              filename: `${resume.title || 'Resume'}.pdf`,
-              content: pdfBuffer,
-              contentType: 'application/pdf'
+          title: resume.title || 'Resume',
+          pageSize: {
+            width: 12240, // A4 width in twip (8.5 inches)
+            height: 15840, // A4 height in twip (11 inches)
+          },
+          styleMap: [
+            // Map HTML styles to Word styles with explicit size
+            'h1 => Heading1:24',
+            'h2 => Heading2:24',
+            'h3 => Heading3:24',
+            'p => Normal:24',
+            'ul => ListBullet:24',
+            '.resume-content => Normal:24'
+          ],
+          styles: {
+            paragraphStyles: {
+              'Heading1': {
+                run: { size: 24, bold: true, color: '#0056b3' }, // 12pt
+                paragraph: { spacing: { after: 160 } }
+              },
+              'Heading2': {
+                run: { size: 24, bold: true, color: '#0056b3' }, // 12pt
+                paragraph: { spacing: { before: 240, after: 120 } }
+              },
+              'Heading3': {
+                run: { size: 24, bold: true, color: '#0056b3' }, // 12pt
+                paragraph: { spacing: { after: 80 } }
+              },
+              'Normal': {
+                run: { size: 24 }, // 12pt
+                paragraph: { spacing: { after: 60 } }
+              },
+              'ListBullet': {
+                run: { size: 24 }, // 12pt
+                paragraph: { 
+                  spacing: { after: 60 },
+                  indent: { left: 720 } // 0.5 inch
+                }
+              }
             }
-          ]
+          },
+          table: {
+            row: {
+              cantSplit: true
+            }
+          },
+          font: 'Arial',
+          css: true, // This tells the library to try to process CSS
+          toc: false,
+          formattingPreservingSpace: true,
+          preserveTextStyles: true
+        };
+        
+        // Process the HTML content to remove any external dependencies
+        const processedHtml = fullHtmlDocument
+          // Convert any image src with external URLs to base64 or remove them
+          .replace(/<img[^>]+src="https?:\/\/[^">]+"[^>]*>/g, match => {
+            // Replace with placeholder or remove
+            return ''; // Just remove external images to avoid connection issues
+          })
+          // Force heading sizes to be consistent
+          .replace(/<h([1-6])[^>]*style="[^"]*"[^>]*>/g, '<h$1 style="font-size: 12pt !important;">')
+          .replace(/<h([1-6])[^>]*>/g, '<h$1 style="font-size: 12pt !important;">');
+        
+        // Convert HTML to DOCX with a timeout
+        const conversionPromise = HTMLtoDOCX(processedHtml, null, {
+          ...options,
+          externalStylesheets: [], // Don't fetch external stylesheets
+          preferCssStyles: true,   // Use CSS from the HTML
+          base64Images: false      // Don't fetch and convert images
         });
         
-        console.log('Email Share: Email sent successfully');
-        return NextResponse.json({
-          success: true,
-          message: 'Resume shared successfully'
+        // Create a timeout promise
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Conversion timed out')), 15000); // 15 second timeout
         });
-      } finally {
-        if (browser) {
-          console.log('Email Share: Closing browser');
-          try {
-            await browser.close();
-          } catch (closeError) {
-            console.warn('Email Share: Error closing browser:', closeError.message);
-          }
+        
+        // Race the conversion against the timeout
+        try {
+          attachmentContent = await Promise.race([conversionPromise, timeoutPromise]);
+          attachmentFilename = `${resume.title || 'Resume'}.docx`;
+          attachmentContentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        } catch (raceError) {
+          console.error('Email Share: Conversion race error:', raceError);
+          return NextResponse.json(
+            { success: false, message: 'Failed to convert to DOCX', error: raceError.message },
+            { status: 500 }
+          );
         }
+      } catch (docxError) {
+        console.error('Email Share: DOCX conversion error:', docxError);
+        return NextResponse.json(
+          { success: false, message: 'Failed to convert to DOCX for email', error: docxError.message },
+          { status: 500 }
+        );
       }
+      
+      // Send the email with the DOCX attachment
+      console.log('Email Share: Sending email to:', recipientEmail);
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: recipientEmail,
+        subject: emailSubject,
+        text: emailMessage,
+        html: `<div><p>${emailMessage.replace(/\n/g, '<br>')}</p></div>`,
+        attachments: [
+          {
+            filename: attachmentFilename,
+            content: attachmentContent,
+            contentType: attachmentContentType
+          }
+        ]
+      });
+      
+      console.log('Email Share: Email sent successfully');
+      return NextResponse.json({
+        success: true,
+        message: 'Resume shared successfully'
+      });
     } catch (emailError) {
-      console.error('Email Share: Email sending error:', emailError.message);
-      console.error('Email Share: Error stack:', emailError.stack);
+      console.error('Email Share: Error sending email:', emailError.message);
       return NextResponse.json(
-        { 
-          success: false, 
-          message: 'Failed to send email', 
-          error: emailError.message,
-          errorType: emailError.name,
-          stack: process.env.NODE_ENV === 'development' ? emailError.stack : undefined
-        },
+        { success: false, message: 'Failed to send email', error: emailError.message },
         { status: 500 }
       );
     }
@@ -274,7 +320,7 @@ async function shareEmailHandler(request) {
     return NextResponse.json(
       { 
         success: false, 
-        message: 'Failed to share resume', 
+        message: 'Failed to share resume by email', 
         error: error.message,
         errorType: error.name,
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
