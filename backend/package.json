@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.0",
+    "@tailwindcss/postcss": "^4.0.14",
     "axios": "^1.8.2",
     "bcryptjs": "^3.0.2",
     "cookie": "^1.0.2",
