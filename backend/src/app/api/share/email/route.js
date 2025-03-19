@@ -75,7 +75,7 @@ async function shareEmailHandler(request) {
     const htmlContent = resume.content;
     // Preserve inline styles by wrapping content in a style-preserving container
     const processedHtmlContent = `
-      <div class="resume-content" style="font-family: Arial, sans-serif;">
+      <div class="resume-content">
         ${htmlContent}
       </div>
     `;
@@ -86,76 +86,7 @@ async function shareEmailHandler(request) {
       <html lang="en">
       <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>${resume.title || 'Resume'}</title>
-        <style>
-          body {
-            font-family: Arial, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            max-width: 210mm;
-            margin: 0 auto;
-            padding: 20px;
-            font-size: 12pt !important;
-          }
-          
-          h1 {
-            font-size: 12pt !important;
-            font-weight: bold;
-            margin-bottom: 16pt;
-            color: #0056b3;
-          }
-          
-          h2 {
-            font-size: 12pt !important;
-            font-weight: bold;
-            margin-top: 20pt;
-            margin-bottom: 10pt;
-            color: #0056b3;
-          }
-          
-          h3 {
-            font-size: 12pt !important;
-            font-weight: bold;
-            margin-bottom: 6pt;
-            color: #0056b3;
-          }
-          
-          p {
-            font-size: 12pt !important;
-            margin-bottom: 6pt;
-          }
-          
-          ul {
-            margin-top: 6pt ;
-            margin-bottom: 12pt;
-            padding-left: 20pt;
-          }
-          
-          li {
-            font-size: 12pt !important;
-            margin-bottom: 4pt;
-          }
-          
-          a {
-            color: #007bff;
-            text-decoration: none;
-            font-size: 12pt !important; 
-          }
-        div {
-            font-size: 12pt !important;
-            margin-top: 0pt !important;
-            margin-bottom: 0pt !important;
-            }
-          .resume-section {
-            margin-bottom: 16pt;
-          }
-          
-          /* Force all elements to have the same font size */
-          * {
-            font-size: 12pt !important;
-          }
-        </style>
       </head>
       <body>
         ${processedHtmlContent}
@@ -198,13 +129,13 @@ async function shareEmailHandler(request) {
             height: 15840, // A4 height in twip (11 inches)
           },
           styleMap: [
-            // Map HTML styles to Word styles with explicit size
             'h1 => Heading1:24',
             'h2 => Heading2:24',
             'h3 => Heading3:24',
             'p => Normal:24',
             'ul => ListBullet:24',
-            '.resume-content => Normal:24'
+            '.resume-content => Normal:24',
+            '* => Normal:24'
           ],
           styles: {
             paragraphStyles: {
@@ -240,9 +171,7 @@ async function shareEmailHandler(request) {
           },
           font: 'Arial',
           css: true, // This tells the library to try to process CSS
-          toc: false,
-          formattingPreservingSpace: true,
-          preserveTextStyles: true
+          formattingPreservingSpace: true
         };
         
         // Process the HTML content to remove any external dependencies
@@ -253,8 +182,17 @@ async function shareEmailHandler(request) {
             return ''; // Just remove external images to avoid connection issues
           })
           // Force heading sizes to be consistent
-          .replace(/<h([1-6])[^>]*style="[^"]*"[^>]*>/g, '<h$1 style="font-size: 12pt !important;">')
-          .replace(/<h([1-6])[^>]*>/g, '<h$1 style="font-size: 12pt !important;">');
+          .replace(/<h([1-6])[^>]*style="[^"]*"[^>]*>/g, '<h$1>')
+          .replace(/<h([1-6])[^>]*>/g, '<h$1>')
+          // Remove any complex styles that might cause issues
+          .replace(/style="[^"]*"/g, '')
+          // Remove any data attributes
+          .replace(/data-[^=]+=["'][^"']*["']/g, '')
+          // Replace non-standard HTML attributes
+          .replace(/contenteditable="[^"]*"/g, '')
+          .replace(/draggable="[^"]*"/g, '')
+          // Clean up any invalid tag nesting
+          .replace(/<\/?(meta|link|script)[^>]*>/g, '');
         
         // Convert HTML to DOCX with a timeout
         const conversionPromise = HTMLtoDOCX(processedHtml, null, {

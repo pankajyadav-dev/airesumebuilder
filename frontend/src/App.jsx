@@ -21,7 +21,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './context/AuthContext';
 
 // Set default axios base URL
-axios.defaults.baseURL = 'https://airesumebuilder-alpha.vercel.app';
+axios.defaults.baseURL = 'http://localhost:3000';
 axios.defaults.withCredentials = true;
 
 // Add request interceptor to include credentials and handle CORS

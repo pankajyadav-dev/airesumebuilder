@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import ResumeTemplates, { getTemplateHtml } from '../components/ResumeTemplates';
+// import ResumeTemplates, { getTemplateHtml } from '../components/ResumeTemplates';
 import ShareEmailModal from '../components/ShareResume';
 import GrammarAnalysisModal from '../components/GrammarAnalysisModal';
 import AtsAnalysisModal from '../components/AtsAnalysisModal';
