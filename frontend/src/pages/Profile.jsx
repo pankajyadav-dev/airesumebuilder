@@ -6,34 +6,21 @@ import { useAuth } from '../context/AuthContext';
 function Profile() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  
-  // Personal Details
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [website, setWebsite] = useState('');
   const [linkedIn, setLinkedIn] = useState('');
   const [github, setGithub] = useState('');
-  
-  // Education
   const [education, setEducation] = useState([]);
-  
-  // Experience
   const [experience, setExperience] = useState([]);
-  
-  // Skills
   const [skills, setSkills] = useState([]);
   const [newSkill, setNewSkill] = useState('');
-  
-  // Certifications
   const [certifications, setCertifications] = useState([]);
-  
-  // Achievements
   const [achievements, setAchievements] = useState([]);
   const [newAchievement, setNewAchievement] = useState('');
 
@@ -46,11 +33,9 @@ function Profile() {
       setLoading(true);
       const response = await axios.get('/api/user/profile');
       const profileData = response.data;
-      
-      // Set user data
+
       setName(profileData.name || '');
-      
-      // Set personal details
+
       if (profileData.profile?.personalDetails) {
         setPhone(profileData.profile.personalDetails.phone || '');
         setAddress(profileData.profile.personalDetails.address || '');
@@ -59,19 +44,18 @@ function Profile() {
         setGithub(profileData.profile.personalDetails.github || '');
       }
       
-      // Set education
+      
       setEducation(profileData.profile?.education || []);
       
-      // Set experience
+   
       setExperience(profileData.profile?.experience || []);
       
-      // Set skills
+   
       setSkills(profileData.profile?.skills || []);
-      
-      // Set certifications
+
       setCertifications(profileData.profile?.certifications || []);
       
-      // Set achievements
+
       setAchievements(profileData.profile?.achievements || []);
       
     } catch (err) {
@@ -117,7 +101,6 @@ function Profile() {
     }
   };
 
-  // Education functions
   const addEducation = () => {
     setEducation([
       ...education,
@@ -246,10 +229,9 @@ function Profile() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-8">
           <div>
-            <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-2">
+            <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-2 pb-1">
               My Profile
             </h1>
-            <p className="text-gray-600">Manage your professional information and preferences</p>
           </div>
           <button
             onClick={saveProfile}
@@ -319,7 +301,7 @@ function Profile() {
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                    className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                   />
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                     <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -340,7 +322,7 @@ function Profile() {
                     id="phone"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
-                    className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                    className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                   />
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                     <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -361,7 +343,7 @@ function Profile() {
                     id="address"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                    className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                   />
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                     <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -383,7 +365,7 @@ function Profile() {
                     id="website"
                     value={website}
                     onChange={(e) => setWebsite(e.target.value)}
-                    className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                    className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                   />
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                     <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -404,7 +386,7 @@ function Profile() {
                     id="linkedIn"
                     value={linkedIn}
                     onChange={(e) => setLinkedIn(e.target.value)}
-                    className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                    className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                   />
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                     <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -425,7 +407,7 @@ function Profile() {
                     id="github"
                     value={github}
                     onChange={(e) => setGithub(e.target.value)}
-                    className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                    className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                   />
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                     <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -509,7 +491,7 @@ function Profile() {
                             type="text"
                             value={edu.institution}
                             onChange={(e) => updateEducation(index, 'institution', e.target.value)}
-                            className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                            className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                           />
                           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -526,7 +508,7 @@ function Profile() {
                             type="text"
                             value={edu.degree}
                             onChange={(e) => updateEducation(index, 'degree', e.target.value)}
-                            className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                            className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                           />
                           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -543,7 +525,7 @@ function Profile() {
                             type="text"
                             value={edu.field}
                             onChange={(e) => updateEducation(index, 'field', e.target.value)}
-                            className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                            className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                           />
                           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -560,7 +542,7 @@ function Profile() {
                             type="date"
                             value={edu.startDate ? new Date(edu.startDate).toISOString().split('T')[0] : ''}
                             onChange={(e) => updateEducation(index, 'startDate', e.target.value)}
-                            className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                            className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                           />
                           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -577,7 +559,7 @@ function Profile() {
                             type="date"
                             value={edu.endDate ? new Date(edu.endDate).toISOString().split('T')[0] : ''}
                             onChange={(e) => updateEducation(index, 'endDate', e.target.value)}
-                            className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                            className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                           />
                           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -594,7 +576,7 @@ function Profile() {
                             rows={3}
                             value={edu.description}
                             onChange={(e) => updateEducation(index, 'description', e.target.value)}
-                            className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                            className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                           />
                           <div className="absolute top-3 right-3">
                             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -680,7 +662,7 @@ function Profile() {
                             type="text"
                             value={exp.company}
                             onChange={(e) => updateExperience(index, 'company', e.target.value)}
-                            className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                            className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                           />
                           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -697,7 +679,7 @@ function Profile() {
                             type="text"
                             value={exp.position}
                             onChange={(e) => updateExperience(index, 'position', e.target.value)}
-                            className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                            className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                           />
                           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -714,7 +696,7 @@ function Profile() {
                             type="date"
                             value={exp.startDate ? new Date(exp.startDate).toISOString().split('T')[0] : ''}
                             onChange={(e) => updateExperience(index, 'startDate', e.target.value)}
-                            className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                            className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                           />
                           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -731,7 +713,7 @@ function Profile() {
                             type="date"
                             value={exp.endDate ? new Date(exp.endDate).toISOString().split('T')[0] : ''}
                             onChange={(e) => updateExperience(index, 'endDate', e.target.value)}
-                            className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                            className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                           />
                           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -748,7 +730,7 @@ function Profile() {
                             rows={3}
                             value={exp.description}
                             onChange={(e) => updateExperience(index, 'description', e.target.value)}
-                            className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                            className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                           />
                           <div className="absolute top-3 right-3">
                             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -785,7 +767,7 @@ function Profile() {
                   value={newSkill}
                   onChange={(e) => setNewSkill(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && addSkill()}
-                  className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                  className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                   <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -909,7 +891,7 @@ function Profile() {
                             type="text"
                             value={cert.name}
                             onChange={(e) => updateCertification(index, 'name', e.target.value)}
-                            className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                            className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                           />
                           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -926,7 +908,7 @@ function Profile() {
                             type="text"
                             value={cert.issuer}
                             onChange={(e) => updateCertification(index, 'issuer', e.target.value)}
-                            className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                            className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                           />
                           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -943,7 +925,7 @@ function Profile() {
                             type="date"
                             value={cert.date ? new Date(cert.date).toISOString().split('T')[0] : ''}
                             onChange={(e) => updateCertification(index, 'date', e.target.value)}
-                            className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                            className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                           />
                           <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                             <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -980,7 +962,7 @@ function Profile() {
                   value={newAchievement}
                   onChange={(e) => setNewAchievement(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && addAchievement()}
-                  className="shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
+                  className=" p-2 shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-lg transition-all duration-200"
                 />
                 <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                   <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

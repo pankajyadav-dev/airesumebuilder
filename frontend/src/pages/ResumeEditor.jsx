@@ -30,7 +30,7 @@ function ResumeEditor() {
   const [grammarAnalysis, setGrammarAnalysis] = useState(null);
   const [showAtsModal, setShowAtsModal] = useState(false);
   const [showGrammarModal, setShowGrammarModal] = useState(false);
-  const [showAIPanel, setShowAIPanel] = useState(false);
+
   const [showTemplates, setShowTemplates] = useState(id === 'new');
   const [step, setStep] = useState(id === 'new' ? 1 : 2); // 1: Choose template, 2: Edit resume
   const [htmlMode, setHtmlMode] = useState(false);
@@ -457,13 +457,6 @@ function ResumeEditor() {
                 </div>
                 <div className="flex flex-wrap gap-3 w-full lg:w-auto">
                   <button
-                    onClick={() => setShowAIPanel(!showAIPanel)}
-                    className="flex-1 lg:flex-none bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-lg text-sm font-medium
-                             hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
-                  >
-                    {showAIPanel ? 'Hide AI Tools' : 'Show AI Tools'}
-                  </button>
-                  <button
                     onClick={handleShareViaEmail}
                     className="flex-1 lg:flex-none bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-3 rounded-lg text-sm font-medium
                              hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 flex items-center justify-center space-x-2"
@@ -531,61 +524,7 @@ function ResumeEditor() {
             )}
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className={`col-span-3 lg:col-span-${showAIPanel ? 2 : 3}`}>
-                <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-2xl">
-                  {editorFailed ? (
-                    <div className="p-6">
-                      <textarea
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        className="w-full h-[600px] p-4 border border-gray-300 rounded-lg focus:outline-none 
-                                 focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono resize-none"
-                        placeholder="Enter your HTML resume content here..."
-                      />
-                    </div>
-                  ) : (
-                    <div className="relative">
-                        <Editor
-                        apiKey="w9wb2nr9fpk741lb6kzvabnhlzj7aimkgqbt1jdvnwi9qgky"
-                        onInit={handleInit}
-                        initialValue={content}
-                        inline={false}
-                        init={{
-                          height: 600,
-                          menubar: true,
-                          branding: false,
-                          promotion: false,
-                          plugins: [
-                            'lists', 'link', 'image', 'preview',
-                            'code', 'table', 'help', 'wordcount'
-                          ],
-                          toolbar: 'undo redo | formatselect | ' +
-                            'bold italic | alignleft aligncenter ' +
-                            'alignright | bullist numlist | link | ' +
-                            'removeformat | help',
-                          content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
-                          skin: 'oxide',
-                          resize: false
-                        }}
-                        />
-                      <div className="absolute top-0 left-0 right-0 text-center p-4 bg-yellow-100 text-yellow-800 
-                                    rounded-t-lg opacity-0 transition-opacity duration-300 shadow-lg" 
-                           style={{ opacity: editorRef.current ? 0 : 0.95 }}>
-                        <div className="flex items-center justify-center space-x-2">
-                          <svg className="animate-spin h-5 w-5 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          <span className="font-medium">Loading editor... If it doesn't appear, try switching to HTML mode.</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {showAIPanel && (
-                <div className="col-span-1">
+            <div className="col-span-2 lg:col-span-1">
                   <div className="bg-white rounded-xl shadow-xl border border-gray-100 p-6 space-y-8 transition-all duration-300 hover:shadow-2xl">
                     <div>
                       <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-6">AI Resume Tools</h2>
@@ -781,7 +720,46 @@ function ResumeEditor() {
                     </div>
                   </div>
                 </div>
-              )}
+              <div className={`col-span-3 lg:col-span-2 h-screen`}>
+                <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-2xl">
+                    <div className=" h-screen">
+                        <Editor
+                        className=" h-screen"
+                        apiKey="w9wb2nr9fpk741lb6kzvabnhlzj7aimkgqbt1jdvnwi9qgky"
+                        onInit={handleInit}
+                        initialValue={content}
+                        inline={false}
+                        init={{
+                          height: '100%',
+                          menubar: true,
+                          branding: false,
+                          promotion: false,
+                          plugins: [
+                            'lists', 'link', 'image', 'preview',
+                            'table',  'wordcount','print', 
+                          ],
+                          toolbar: 'undo redo | formatselect | ' +
+                            'bold italic | alignleft aligncenter ' +
+                            'alignright | bullist numlist | link | ' ,
+                          content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
+                          skin: 'oxide',
+                          resize: false
+                        }}
+                        />
+                      <div className="absolute top-0 left-0 right-0 text-center p-4 bg-yellow-100 text-yellow-800 
+                                    rounded-t-lg opacity-0 transition-opacity duration-300 shadow-lg" 
+                           style={{ opacity: editorRef.current ? 0 : 0.95 }}>
+                        <div className="flex items-center justify-center space-x-2">
+                          <svg className="animate-spin h-5 w-5 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span className="font-medium">Loading editor... If it doesn't appear, try switching to HTML mode.</span>
+                        </div>
+                      </div>
+                    </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

@@ -28,8 +28,7 @@ async function generateResumeHandler(request) {
     }
     
     await connectDB();
-    
-    // Get user profile data
+
     const user = await User.findById(session.userId);
     
     if (!user) {
@@ -39,17 +38,12 @@ async function generateResumeHandler(request) {
         { status: 404 }
       );
     }
-    
-    // Check if profile data is available
+
     const hasProfile = user.profile || {};
     const hasExperience = hasProfile.experience && hasProfile.experience.length > 0;
     const hasEducation = hasProfile.education && hasProfile.education.length > 0;
     const hasSkills = hasProfile.skills && hasProfile.skills.length > 0;
-    
-    // Even if the user has no profile data, we'll generate a resume with default content
-    // instead of returning an error
-    
-    // Use mock response for development/testing or if Gemini API key is not available
+
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_gemini_api_key') {
       console.log('AI Resume API: Using mock response (no API key)');
       
@@ -60,8 +54,7 @@ async function generateResumeHandler(request) {
         content: mockHtmlContent
       });
     }
-    
-    // Create a user data object with all available information
+
     const userData = {
       name: user.name,
       email: user.email,
@@ -77,16 +70,14 @@ async function generateResumeHandler(request) {
       achievements: hasProfile.achievements || [],
       summary: generateDefaultSummary(user.name, jobTitle, targetCompany, targetIndustry, hasProfile)
     };
-    
-    // Construct prompt based on available user data
+
     const prompt = constructResumePrompt(userData, jobTitle, targetCompany, targetIndustry);
     
     try {
-      console.log('AI Resume API: Initializing Google Generative AI');
-      // Initialize the Google Generative AI client
+
+
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      
-      // Get the model - using gemini-2.0-flash for better performance and speed
+
       const model = genAI.getGenerativeModel({ 
         model: "gemini-2.0-flash",
         generationConfig: {
@@ -116,8 +107,7 @@ async function generateResumeHandler(request) {
       });
       
       console.log('AI Resume API: Sending request to Gemini API');
-      
-      // Add retry logic for API reliability
+
       let attempts = 0;
       const maxAttempts = 3;
       let generatedContent = '';
@@ -125,12 +115,12 @@ async function generateResumeHandler(request) {
       
       while (attempts < maxAttempts) {
         try {
-          // Generate content using the updated SDK approach
+
           result = await model.generateContent(prompt);
           const response = await result.response;
           generatedContent = response.text();
           
-          // If we got content successfully, break out of retry loop
+
           if (generatedContent && generatedContent.length > 0) {
             break;
           }
@@ -138,37 +128,36 @@ async function generateResumeHandler(request) {
           attempts++;
           console.log(`AI Resume API: Empty response, retrying (${attempts}/${maxAttempts})`);
           
-          // Wait briefly before retrying
+
           await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (err) {
           attempts++;
           console.error(`AI Resume API: Error on attempt ${attempts}/${maxAttempts}:`, err.message);
           
           if (attempts >= maxAttempts) {
-            throw err; // Re-throw if we've exhausted retries
+            throw err; 
           }
           
-          // Wait before retrying, with exponential backoff
+ 
           await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
         }
       }
       
-      // Clean up the response to ensure it's valid HTML
-      // Sometimes Gemini might include ```html and ``` markers
+
       generatedContent = generatedContent.replace(/```html|```/g, '').trim();
       
-      // Ensure the content starts with a div if it doesn't already
+
       if (!generatedContent.trim().startsWith('<div') && !generatedContent.trim().startsWith('<html')) {
         generatedContent = `<div>${generatedContent}</div>`;
       }
       
-      // Remove any explanatory text that might appear outside the HTML tags
+
       const htmlMatch = generatedContent.match(/<div[\s\S]*<\/div>/);
       if (htmlMatch) {
         generatedContent = htmlMatch[0];
       }
       
-      // Fix common HTML issues
+
       generatedContent = fixHtmlIssues(generatedContent);
       
       console.log('AI Resume API: Successfully generated content');
@@ -179,7 +168,7 @@ async function generateResumeHandler(request) {
     } catch (apiError) {
       console.error('AI Resume API: Gemini API error:', apiError.message);
       
-      // Generate a fallback template with the available user information
+
       const fallbackContent = generateDefaultResumeContent(user, jobTitle, targetCompany, targetIndustry, hasProfile, hasExperience, hasEducation, hasSkills);
       
       return NextResponse.json({
@@ -197,7 +186,7 @@ async function generateResumeHandler(request) {
   }
 }
 
-// Helper function to format experience for the prompt
+
 function formatExperienceForPrompt(experience) {
   return experience.map(exp => ({
     company: exp.company,
@@ -208,7 +197,7 @@ function formatExperienceForPrompt(experience) {
   }));
 }
 
-// Helper function to format education for the prompt
+
 function formatEducationForPrompt(education) {
   return education.map(edu => ({
     institution: edu.institution,
@@ -220,25 +209,21 @@ function formatEducationForPrompt(education) {
   }));
 }
 
-// Helper function to generate a default summary
 function generateDefaultSummary(name, jobTitle, targetCompany, targetIndustry, profile) {
   const hasSkills = profile.skills && profile.skills.length > 0;
-  
-  // Generate a list of relevant qualities based on job title
+
   const qualities = getJobQualities(jobTitle);
   const randomQuality1 = qualities[0];
   const randomQuality2 = qualities[1];
   
-  // Generate a list of relevant action verbs based on job title
+
   const verbs = getJobActionVerbs(jobTitle);
   const randomVerb = verbs[Math.floor(Math.random() * verbs.length)];
-  
-  // Get skills text - either from user profile or generate based on job
+
   const skillsText = hasSkills 
     ? profile.skills.slice(0, 3).join(', ') 
     : getRelevantSkills(jobTitle, targetIndustry).slice(0, 3).join(', ');
-  
-  // Format summary with different structures for variety
+
   const summaryVariant = Math.floor(Math.random() * 3);
   
   if (summaryVariant === 0) {
@@ -250,33 +235,28 @@ function generateDefaultSummary(name, jobTitle, targetCompany, targetIndustry, p
   }
 }
 
-// Helper function to get job-specific qualities
 function getJobQualities(jobTitle) {
   const lowercaseTitle = jobTitle.toLowerCase();
-  
-  // Default qualities for any position
+
   const defaultQualities = [
     'Results-driven', 'Detail-oriented', 'Innovative', 'Highly motivated',
     'Strategic', 'Adaptable', 'Proactive', 'Collaborative'
   ];
   
-  // Tech/Developer qualities
   if (lowercaseTitle.includes('software') || lowercaseTitle.includes('developer') || lowercaseTitle.includes('engineer')) {
     return shuffleArray([
       'Detail-oriented', 'Analytical', 'Innovative', 'Technical',
       'Solutions-focused', 'Systems-thinking', 'Architecture-minded', 'Algorithm-savvy'
     ]).slice(0, 2);
   }
-  
-  // Data-related qualities
+ 
   if (lowercaseTitle.includes('data') || lowercaseTitle.includes('analyst')) {
     return shuffleArray([
       'Analytical', 'Data-driven', 'Detail-oriented', 'Solutions-focused',
       'Insights-oriented', 'Pattern-recognizing', 'Statistical', 'Methodical'
     ]).slice(0, 2);
   }
-  
-  // Marketing qualities
+ 
   if (lowercaseTitle.includes('market') || lowercaseTitle.includes('brand')) {
     return shuffleArray([
       'Creative', 'Results-driven', 'Strategic', 'Customer-focused',
@@ -284,7 +264,6 @@ function getJobQualities(jobTitle) {
     ]).slice(0, 2);
   }
   
-  // Management qualities
   if (lowercaseTitle.includes('manager') || lowercaseTitle.includes('director') || lowercaseTitle.includes('lead')) {
     return shuffleArray([
       'Strategic', 'Leadership-focused', 'Results-oriented', 'Team-building',
@@ -292,29 +271,23 @@ function getJobQualities(jobTitle) {
     ]).slice(0, 2);
   }
   
-  // Shuffle and return default qualities if no specific match
   return shuffleArray(defaultQualities).slice(0, 2);
 }
 
-// Helper function to get job-specific action verbs
 function getJobActionVerbs(jobTitle) {
   const lowercaseTitle = jobTitle.toLowerCase();
   
-  // Default verbs for any position
   const defaultVerbs = [
     'delivering', 'implementing', 'developing', 'creating',
     'managing', 'optimizing', 'leading', 'executing'
   ];
   
-  // Tech/Developer verbs
   if (lowercaseTitle.includes('software') || lowercaseTitle.includes('developer') || lowercaseTitle.includes('engineer')) {
     return shuffleArray([
       'architecting', 'developing', 'engineering', 'implementing',
       'coding', 'designing', 'optimizing', 'building'
     ]);
   }
-  
-  // Data-related verbs
   if (lowercaseTitle.includes('data') || lowercaseTitle.includes('analyst')) {
     return shuffleArray([
       'analyzing', 'modeling', 'visualizing', 'interpreting',
@@ -322,7 +295,6 @@ function getJobActionVerbs(jobTitle) {
     ]);
   }
   
-  // Marketing verbs
   if (lowercaseTitle.includes('market') || lowercaseTitle.includes('brand')) {
     return shuffleArray([
       'promoting', 'strategizing', 'branding', 'launching',
@@ -330,7 +302,6 @@ function getJobActionVerbs(jobTitle) {
     ]);
   }
   
-  // Management verbs
   if (lowercaseTitle.includes('manager') || lowercaseTitle.includes('director') || lowercaseTitle.includes('lead')) {
     return shuffleArray([
       'leading', 'directing', 'managing', 'overseeing',
@@ -338,22 +309,18 @@ function getJobActionVerbs(jobTitle) {
     ]);
   }
   
-  // Shuffle and return default verbs if no specific match
   return shuffleArray(defaultVerbs);
 }
 
-// Helper function to get relevant skills based on job title
 function getRelevantSkills(jobTitle, targetIndustry) {
   const lowercaseTitle = jobTitle.toLowerCase();
   const lowercaseIndustry = (targetIndustry || '').toLowerCase();
   
-  // Default skills for any position
   const defaultSkills = [
     'project management', 'team collaboration', 'strategic planning',
     'problem-solving', 'communication', 'critical thinking'
   ];
   
-  // Tech/Developer skills
   if (lowercaseTitle.includes('software') || lowercaseTitle.includes('developer') || lowercaseTitle.includes('engineer')) {
     const techSkills = [
       'JavaScript', 'Python', 'React', 'Node.js', 'cloud architecture',
@@ -367,7 +334,6 @@ function getRelevantSkills(jobTitle, targetIndustry) {
     return shuffleArray(techSkills);
   }
   
-  // Data-related skills
   if (lowercaseTitle.includes('data') || lowercaseTitle.includes('analyst')) {
     return shuffleArray([
       'data analysis', 'SQL', 'data visualization', 'statistical modeling',
@@ -375,7 +341,6 @@ function getRelevantSkills(jobTitle, targetIndustry) {
     ]);
   }
   
-  // Marketing skills
   if (lowercaseTitle.includes('market') || lowercaseTitle.includes('brand')) {
     return shuffleArray([
       'digital marketing', 'content strategy', 'SEO', 'social media management',
@@ -383,7 +348,6 @@ function getRelevantSkills(jobTitle, targetIndustry) {
     ]);
   }
   
-  // Management skills
   if (lowercaseTitle.includes('manager') || lowercaseTitle.includes('director') || lowercaseTitle.includes('lead')) {
     return shuffleArray([
       'team leadership', 'strategic planning', 'performance management', 'budget oversight',
@@ -391,7 +355,6 @@ function getRelevantSkills(jobTitle, targetIndustry) {
     ]);
   }
   
-  // Return industry-specific skills if available, otherwise default
   if (lowercaseIndustry.includes('health')) {
     return shuffleArray([
       'healthcare operations', 'patient care', 'regulatory compliance',
@@ -406,11 +369,9 @@ function getRelevantSkills(jobTitle, targetIndustry) {
     ]);
   }
   
-  // Shuffle and return default skills if no specific match
   return shuffleArray(defaultSkills);
 }
 
-// Helper function to shuffle an array
 function shuffleArray(array) {
   const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {
@@ -420,9 +381,7 @@ function shuffleArray(array) {
   return newArray;
 }
 
-// Helper function to construct a detailed resume generation prompt
 function constructResumePrompt(userData, jobTitle, targetCompany, targetIndustry) {
-  // Determine the completeness of user data to adjust prompt complexity
   const hasBasicInfo = userData.name && userData.email;
   const hasContactInfo = userData.phone || userData.address || userData.website || userData.linkedin || userData.github;
   const hasExperience = userData.experience && userData.experience.length > 0;
@@ -431,7 +390,6 @@ function constructResumePrompt(userData, jobTitle, targetCompany, targetIndustry
   const hasCertifications = userData.certifications && userData.certifications.length > 0;
   const hasAchievements = userData.achievements && userData.achievements.length > 0;
   
-  // Calculate information completeness for context-aware prompt generation
   const completenessScore = [
     hasBasicInfo, hasContactInfo, hasExperience, hasEducation, 
     hasSkills, hasCertifications, hasAchievements
@@ -453,14 +411,12 @@ A ${jobTitle} candidate`;
   
   prompt += '.\n\n';
   
-  // Add special instructions based on data completeness
   if (completenessScore < 0.5) {
     prompt += `SPECIAL INSTRUCTION: This candidate has provided limited information. Please generate appropriate 
 professional experiences, education, and skills that would be typical and impressive for a ${jobTitle} 
 ${targetIndustry ? `in the ${targetIndustry} industry` : ''}. Make it realistic but impressive.\n\n`;
   }
   
-  // Add contact information
   prompt += 'CANDIDATE INFORMATION:\n';
   prompt += `Name: ${userData.name}\n`;
   prompt += `Email: ${userData.email}\n`;
@@ -470,11 +426,9 @@ ${targetIndustry ? `in the ${targetIndustry} industry` : ''}. Make it realistic 
   if (userData.linkedin) prompt += `LinkedIn: ${userData.linkedin}\n`;
   if (userData.github) prompt += `GitHub: ${userData.github}\n`;
   
-  // Add summary
   prompt += '\nPROFESSIONAL SUMMARY:\n';
   prompt += userData.summary + '\n';
   
-  // Add experience with detailed instructions
   prompt += '\nWORK EXPERIENCE:\n';
   if (hasExperience) {
     userData.experience.forEach(exp => {
@@ -485,12 +439,11 @@ ${targetIndustry ? `in the ${targetIndustry} industry` : ''}. Make it realistic 
       prompt += '\n';
     });
   } else {
-    prompt += `No experience provided. Please generate 2-3 relevant work experiences for a ${jobTitle} role`;
+    prompt += `IF No experience provided. Please generate 2-3 relevant work experiences for a ${jobTitle} role`;
     if (targetIndustry) prompt += ` in the ${targetIndustry} industry`;
     prompt += `. Make the experiences realistic, impressive, and include quantifiable achievements. Ensure job titles, company names, and dates are appropriate.\n`;
   }
   
-  // Add education with detailed instructions
   prompt += '\nEDUCATION:\n';
   if (hasEducation) {
     userData.education.forEach(edu => {
@@ -506,7 +459,6 @@ ${targetIndustry ? `in the ${targetIndustry} industry` : ''}. Make it realistic 
     prompt += `. Include relevant degree, field of study, institution, and dates.\n`;
   }
   
-  // Add skills with detailed instructions
   prompt += '\nSKILLS:\n';
   if (hasSkills) {
     prompt += userData.skills.join(', ') + '\n';
@@ -516,7 +468,6 @@ ${targetIndustry ? `in the ${targetIndustry} industry` : ''}. Make it realistic 
     prompt += `. Include a mix of hard and soft skills that would impress recruiters and pass ATS systems.\n`;
   }
   
-  // Add certifications if available
   if (hasCertifications) {
     prompt += '\nCERTIFICATIONS:\n';
     userData.certifications.forEach(cert => {
@@ -529,7 +480,6 @@ ${targetIndustry ? `in the ${targetIndustry} industry` : ''}. Make it realistic 
     prompt += `, please include 1-2 relevant industry certifications.\n`;
   }
   
-  // Add achievements if available
   if (hasAchievements) {
     prompt += '\nACHIEVEMENTS:\n';
     userData.achievements.forEach(achievement => {
@@ -537,7 +487,6 @@ ${targetIndustry ? `in the ${targetIndustry} industry` : ''}. Make it realistic 
     });
   }
   
-  // Add ATS optimization instructions
   prompt += `\nATS OPTIMIZATION:
 1. Include job-specific keywords for ${jobTitle} positions
 2. Use industry-standard section headings and formatting
@@ -545,7 +494,6 @@ ${targetIndustry ? `in the ${targetIndustry} industry` : ''}. Make it realistic 
 4. Include relevant ${targetIndustry || "industry"} terminology
 5. Use measurable achievements and quantified results`;
   
-  // HTML format instructions
   prompt += `\n\nHTML FORMATTING INSTRUCTIONS:
 1. Create clean, semantic HTML with inline CSS only
 2. Use a professional single-column layout optimized for ATS systems
@@ -559,25 +507,20 @@ ${targetIndustry ? `in the ${targetIndustry} industry` : ''}. Make it realistic 
 10. Format dates, job titles, and company names consistently
 11. If creating experiences from scratch, include realistic metrics and achievements with numbers
 
-RESPONSE FORMAT: Respond with ONLY the HTML resume content, nothing else - no explanations, no markdown formatting, just the raw HTML.`;
+RESPONSE FORMAT: Respond with ONLY the HTML resume content, nothing else - no explanations, no markdown formatting, just the raw HTML.  And if you feel that any section have have not good discribtion feel free to improve the content of that section and give a best of the resume for the same post`;
 
   return prompt;
 }
 
-// Helper function to fix common HTML issues
 function fixHtmlIssues(htmlContent) {
-  // Ensure there are no remaining text snippets, explanations or markdown outside the HTML
   htmlContent = htmlContent.replace(/^[\s\S]*?(<div[\s\S]*<\/div>)[\s\S]*$/, '$1');
-  
-  // Fix unclosed tags
+ 
   const commonTags = ['div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span', 'ul', 'ol', 'li', 'a', 'strong', 'em', 'b', 'i'];
   
   commonTags.forEach(tag => {
-    // Count opening and closing tags
     const openCount = (htmlContent.match(new RegExp(`<${tag}(\\s|>)`, 'g')) || []).length;
     const closeCount = (htmlContent.match(new RegExp(`</${tag}>`, 'g')) || []).length;
     
-    // Add missing closing tags at the end
     if (openCount > closeCount) {
       const difference = openCount - closeCount;
       for (let i = 0; i < difference; i++) {
@@ -586,12 +529,10 @@ function fixHtmlIssues(htmlContent) {
     }
   });
   
-  // Fix common HTML entity issues
   htmlContent = htmlContent
-    .replace(/&(?!amp;|lt;|gt;|quot;|apos;|nbsp;|copy;|reg;|#\d+;)/g, '&amp;') // Fix unescaped ampersands
-    .replace(/<\s*script/gi, '&lt;script'); // Prevent script tags
+    .replace(/&(?!amp;|lt;|gt;|quot;|apos;|nbsp;|copy;|reg;|#\d+;)/g, '&amp;') 
+    .replace(/<\s*script/gi, '&lt;script'); 
   
-  // Replace potentially problematic inline styles that might break layout
   htmlContent = htmlContent
     .replace(/position\s*:\s*fixed/gi, 'position: relative')
     .replace(/position\s*:\s*absolute/gi, 'position: relative')
@@ -601,9 +542,7 @@ function fixHtmlIssues(htmlContent) {
   return htmlContent;
 }
 
-// Helper function to generate default resume content
 function generateDefaultResumeContent(user, jobTitle, targetCompany, targetIndustry, hasProfile, hasExperience, hasEducation, hasSkills) {
-  // Generate job-specific default skills if the user has none
   const defaultSkills = generateDefaultSkills(jobTitle, targetIndustry);
   
   return `
