@@ -81,8 +81,8 @@ const theme = createTheme({
 });
 
 // Set default axios base URL
-axios.defaults.baseURL = 'http://localhost:3000';
-// axios.defaults.baseURL = 'https://airesumebuilder-alpha.vercel.app/';
+// axios.defaults.baseURL = 'http://localhost:3000';
+axios.defaults.baseURL = 'https://airesumebuilder-alpha.vercel.app/';
 axios.defaults.withCredentials = true;
 
 // Add request interceptor to include credentials and handle CORS
