@@ -668,11 +668,11 @@ function generateDefaultResumeContent(user, jobTitle, targetCompany, targetIndus
       <div style="text-align: center; margin-bottom: 20px;">
         <h1 style="margin: 0; color: #333;">${name}</h1>
         <p style="margin: 5px 0;">${email} | ${phone} | ${location}</p>
-      </div>
+          </div>
       <div style="margin-bottom: 20px;">
         <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Summary</h2>
         <p>${generateDefaultSummary(name, jobTitle, targetCompany, targetIndustry, hasProfile)}</p>
-      </div>
+        </div>
       <div style="margin-bottom: 20px;">
         <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Experience</h2>
         ${experiences.map(exp => `
@@ -684,16 +684,16 @@ function generateDefaultResumeContent(user, jobTitle, targetCompany, targetIndus
                 `<li>${sentence.trim() + (sentence.endsWith('.') ? '' : '.')}</li>`
               ).join('')}
             </ul>
-          </div>
-        `).join('')}
-      </div>
+        </div>
+      `).join('')}
+    </div>
       <div style="margin-bottom: 20px;">
         <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Education</h2>
         ${education.map(edu => `
           <div>
             <h3 style="margin: 0; font-size: 16px;">${edu.degree} in ${edu.field}</h3>
             <p style="margin: 0; font-style: italic;">${edu.institution} | ${edu.startDate} - ${edu.endDate}</p>
-          </div>
+  </div>
         `).join('')}
       </div>
       <div>
@@ -727,73 +727,75 @@ function generateDefaultResumeContent(user, jobTitle, targetCompany, targetIndus
               ${exp.description.split('. ').filter(s => s.trim()).map(sentence => 
                 `<li style="margin-bottom: 8px;">${sentence.trim() + (sentence.endsWith('.') ? '' : '.')}</li>`
               ).join('')}
-            </ul>
-          </div>
+      </ul>
+  </div>
         `).join('')}
-      </div>
+</div>
       <div style="margin-bottom: 25px;">
         <h2 style="font-size: 22px; color: #9c27b0; border-bottom: 2px solid #9c27b0; padding-bottom: 5px; display: inline-block;">Education</h2>
         ${education.map(edu => `
           <div style="padding: 10px 0;">
             <h3 style="margin: 0; font-size: 18px; color: #333;">${edu.degree} in ${edu.field}</h3>
             <p style="margin: 5px 0; font-style: italic; color: #666;">${edu.institution} | ${edu.startDate} - ${edu.endDate}</p>
-          </div>
-        `).join('')}
       </div>
+        `).join('')}
+    </div>
       <div style="margin-bottom: 25px;">
         <h2 style="font-size: 22px; color: #9c27b0; border-bottom: 2px solid #9c27b0; padding-bottom: 5px; display: inline-block;">Skills</h2>
         <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px;">
           ${skillsList.map(skill => 
             `<span style="background-color: #f3e5f5; padding: 8px 15px; border-radius: 20px; color: #9c27b0; font-weight: 500;">${skill}</span>`
           ).join('')}
-        </div>
       </div>
+    </div>
     </div>`;
   }
   // Modern template
   else if (template === 'modern') {
-    return `<div style="font-family: 'Inter', sans-serif; max-width: 800px; margin: 0 auto; padding: 30px;">
-      <div style="display: flex; margin-bottom: 30px; flex-wrap: wrap;">
-        <div style="background-color: #1976d2; width: 30%; padding: 30px; color: white; min-width: 200px; flex: 1;">
-          <h1 style="margin: 0 0 20px; font-size: 28px;">${name}</h1>
-          <p style="margin: 0 0 5px; font-size: 14px;">Email: ${email}</p>
-          <p style="margin: 0 0 5px; font-size: 14px;">Phone: ${phone}</p>
-          <p style="margin: 0 0 25px; font-size: 14px;">Location: ${location}</p>
+    return `<div style="font-family: 'Arial', sans-serif; max-width: 800px; margin: 0 auto; padding: 0;">
+      <table style="width: 100%; border-collapse: collapse; border: none;">
+        <tr>
+          <td style="width: 30%; background-color: #1976d2; color: white; padding: 30px; vertical-align: top;">
+            <h1 style="margin: 0 0 20px; font-size: 28px;">${name}</h1>
+            <p style="margin: 0 0 5px; font-size: 14px;">Email: ${email}</p>
+            <p style="margin: 0 0 5px; font-size: 14px;">Phone: ${phone}</p>
+            <p style="margin: 0 0 25px; font-size: 14px;">Location: ${location}</p>
+            
+            <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Skills</h3>
+            <ul style="margin: 0; padding-left: 20px;">
+              ${skillsList.map(skill => 
+                `<li style="margin-bottom: 8px;">${skill}</li>`
+              ).join('')}
+            </ul>
+            
+            <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Education</h3>
+            ${education.map(edu => `
+              <h4 style="margin: 0; font-size: 16px;">${edu.degree} in ${edu.field}</h4>
+              <p style="margin: 5px 0 0; font-style: italic; font-size: 14px;">${edu.institution}</p>
+              <p style="margin: 5px 0 15px; font-size: 14px;">${edu.startDate} - ${edu.endDate}</p>
+            `).join('')}
+          </td>
           
-          <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Skills</h3>
-          <ul style="margin: 0; padding-left: 20px;">
-            ${skillsList.map(skill => 
-              `<li style="margin-bottom: 8px;">${skill}</li>`
-            ).join('')}
-          </ul>
-          
-          <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Education</h3>
-          ${education.map(edu => `
-            <h4 style="margin: 0; font-size: 16px;">${edu.degree} in ${edu.field}</h4>
-            <p style="margin: 5px 0 0; font-style: italic; font-size: 14px;">${edu.institution}</p>
-            <p style="margin: 5px 0 15px; font-size: 14px;">${edu.startDate} - ${edu.endDate}</p>
-          `).join('')}
-        </div>
-        
-        <div style="width: 70%; padding: 30px; min-width: 300px; flex: 2;">
-          <h2 style="font-size: 20px; color: #1976d2; margin: 0 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Professional Summary</h2>
-          <p style="color: #444; line-height: 1.6;">${generateDefaultSummary(name, jobTitle, targetCompany, targetIndustry, hasProfile)}</p>
-          
-          <h2 style="font-size: 20px; color: #1976d2; margin: 30px 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Work Experience</h2>
-          
-          ${experiences.map(exp => `
-            <div style="margin-bottom: 20px;">
-              <h3 style="margin: 0; font-size: 18px; color: #333;">${exp.title}</h3>
-              <p style="margin: 5px 0; font-weight: 500; color: #666;">${exp.company} | ${exp.startDate} - ${exp.endDate}</p>
-              <ul style="margin: 10px 0 0; padding-left: 20px; color: #444;">
-                ${exp.description.split('. ').filter(s => s.trim()).map(sentence => 
-                  `<li style="margin-bottom: 8px;">${sentence.trim() + (sentence.endsWith('.') ? '' : '.')}</li>`
-                ).join('')}
-              </ul>
-            </div>
-          `).join('')}
-        </div>
-      </div>
+          <td style="width: 70%; padding: 30px; vertical-align: top;">
+            <h2 style="font-size: 20px; color: #1976d2; margin: 0 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Professional Summary</h2>
+            <p style="color: #444; line-height: 1.6;">${generateDefaultSummary(name, jobTitle, targetCompany, targetIndustry, hasProfile)}</p>
+            
+            <h2 style="font-size: 20px; color: #1976d2; margin: 30px 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Work Experience</h2>
+            
+            ${experiences.map(exp => `
+              <div style="margin-bottom: 20px;">
+                <h3 style="margin: 0; font-size: 18px; color: #333;">${exp.title}</h3>
+                <p style="margin: 5px 0; font-weight: 500; color: #666;">${exp.company} | ${exp.startDate} - ${exp.endDate}</p>
+                <ul style="margin: 10px 0 0; padding-left: 20px; color: #444;">
+                  ${exp.description.split('. ').filter(s => s.trim()).map(sentence => 
+                    `<li style="margin-bottom: 8px;">${sentence.trim() + (sentence.endsWith('.') ? '' : '.')}</li>`
+                  ).join('')}
+                </ul>
+              </div>
+            `).join('')}
+          </td>
+        </tr>
+      </table>
     </div>`;
   }
 }

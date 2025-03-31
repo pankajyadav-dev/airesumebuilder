@@ -47,12 +47,15 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import BusinessIcon from '@mui/icons-material/Business';
 import WorkIcon from '@mui/icons-material/Work';
 import CategoryIcon from '@mui/icons-material/Category';
+import DesignServicesIcon from '@mui/icons-material/DesignServices';
+import InfoIcon from '@mui/icons-material/Info';
 
 function ResumeEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const editorRef = useRef(null);
+  const resizeRef = useRef(null);
   
   const [title, setTitle] = useState('Untitled Resume');
   const [content, setContent] = useState('');
@@ -70,6 +73,8 @@ function ResumeEditor() {
   const [grammarAnalysis, setGrammarAnalysis] = useState(null);
   const [showAtsModal, setShowAtsModal] = useState(false);
   const [showGrammarModal, setShowGrammarModal] = useState(false);
+  const [editorWidth, setEditorWidth] = useState(75);
+  const [isResizing, setIsResizing] = useState(false);
 
   const [showTemplates, setShowTemplates] = useState(id === 'new');
   const [step, setStep] = useState(id === 'new' ? 1 : 2); // 1: Choose template, 2: Edit resume
@@ -369,6 +374,9 @@ function ResumeEditor() {
       // Update the editor content if available
       if (editorRef.current) {
         editorRef.current.setContent(newContent);
+        
+        // Notify the editor about the template change
+        editorRef.current.dispatch('TemplateChange', { template: templateId });
       }
       
       // Show success message
@@ -448,46 +456,49 @@ function ResumeEditor() {
         </div>
       </div>`;
     } else if (template === 'modern') {
-      return `<div style="font-family: 'Inter', sans-serif; max-width: 800px; margin: 0 auto; padding: 30px;">
-        <div style="display: flex; margin-bottom: 30px; flex-wrap: wrap;">
-          <div style="background-color: #1976d2; width: 30%; padding: 30px; color: white; min-width: 200px; flex: 1;">
-            <h1 style="margin: 0 0 20px; font-size: 28px;">${name}</h1>
-            <p style="margin: 0 0 5px; font-size: 14px;">Email: ${email}</p>
-            <p style="margin: 0 0 5px; font-size: 14px;">Phone: Your Phone</p>
-            <p style="margin: 0 0 25px; font-size: 14px;">Location: Your Location</p>
-            
-            <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Skills</h3>
-            <ul style="margin: 0; padding-left: 20px;">
-              <li style="margin-bottom: 8px;">Skill 1</li>
-              <li style="margin-bottom: 8px;">Skill 2</li>
-              <li style="margin-bottom: 8px;">Skill 3</li>
-              <li style="margin-bottom: 8px;">Skill 4</li>
-              <li style="margin-bottom: 8px;">Skill 5</li>
-            </ul>
-            
-            <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Education</h3>
-            <h4 style="margin: 0; font-size: 16px;">Degree Name</h4>
-            <p style="margin: 5px 0 0; font-style: italic; font-size: 14px;">University Name</p>
-            <p style="margin: 5px 0 0; font-size: 14px;">Graduation Year</p>
-          </div>
-          
-          <div style="width: 70%; padding: 30px; min-width: 300px; flex: 2;">
-            <h2 style="font-size: 20px; color: #1976d2; margin: 0 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Professional Summary</h2>
-            <p style="color: #444; line-height: 1.6;">A dedicated professional with expertise in the industry. Committed to delivering high-quality results and driving innovation in all projects.</p>
-            
-            <h2 style="font-size: 20px; color: #1976d2; margin: 30px 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Work Experience</h2>
-            
-            <div style="margin-bottom: 20px;">
-              <h3 style="margin: 0; font-size: 18px; color: #333;">Job Title</h3>
-              <p style="margin: 5px 0; font-weight: 500; color: #666;">Company Name | Date - Present</p>
-              <ul style="margin: 10px 0 0; padding-left: 20px; color: #444;">
-                <li style="margin-bottom: 8px;">Led key initiatives that resulted in significant improvements</li>
-                <li style="margin-bottom: 8px;">Collaborated with teams across departments to deliver successful projects</li>
-                <li style="margin-bottom: 8px;">Implemented new strategies that increased efficiency by 30%</li>
+      // Fixed modern template layout to work with Word export
+      return `<div style="font-family: 'Arial', sans-serif; max-width: 800px; margin: 0 auto; padding: 0;">
+        <table style="width: 100%; border-collapse: collapse; border: none;">
+          <tr>
+            <td style="width: 30%; background-color: #1976d2; color: white; padding: 30px; vertical-align: top;">
+              <h1 style="margin: 0 0 20px; font-size: 28px;">${name}</h1>
+              <p style="margin: 0 0 5px; font-size: 14px;">Email: ${email}</p>
+              <p style="margin: 0 0 5px; font-size: 14px;">Phone: Your Phone</p>
+              <p style="margin: 0 0 25px; font-size: 14px;">Location: Your Location</p>
+              
+              <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Skills</h3>
+              <ul style="margin: 0; padding-left: 20px;">
+                <li style="margin-bottom: 8px;">Skill 1</li>
+                <li style="margin-bottom: 8px;">Skill 2</li>
+                <li style="margin-bottom: 8px;">Skill 3</li>
+                <li style="margin-bottom: 8px;">Skill 4</li>
+                <li style="margin-bottom: 8px;">Skill 5</li>
               </ul>
-            </div>
-          </div>
-        </div>
+              
+              <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Education</h3>
+              <h4 style="margin: 0; font-size: 16px;">Degree Name</h4>
+              <p style="margin: 5px 0 0; font-style: italic; font-size: 14px;">University Name</p>
+              <p style="margin: 5px 0 0; font-size: 14px;">Graduation Year</p>
+            </td>
+            
+            <td style="width: 70%; padding: 30px; vertical-align: top;">
+              <h2 style="font-size: 20px; color: #1976d2; margin: 0 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Professional Summary</h2>
+              <p style="color: #444; line-height: 1.6;">A dedicated professional with expertise in the industry. Committed to delivering high-quality results and driving innovation in all projects.</p>
+              
+              <h2 style="font-size: 20px; color: #1976d2; margin: 30px 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Work Experience</h2>
+              
+              <div style="margin-bottom: 20px;">
+                <h3 style="margin: 0; font-size: 18px; color: #333;">Job Title</h3>
+                <p style="margin: 5px 0; font-weight: 500; color: #666;">Company Name | Date - Present</p>
+                <ul style="margin: 10px 0 0; padding-left: 20px; color: #444;">
+                  <li style="margin-bottom: 8px;">Led key initiatives that resulted in significant improvements</li>
+                  <li style="margin-bottom: 8px;">Collaborated with teams across departments to deliver successful projects</li>
+                  <li style="margin-bottom: 8px;">Implemented new strategies that increased efficiency by 30%</li>
+                </ul>
+              </div>
+            </td>
+          </tr>
+        </table>
       </div>`;
     } else { // professional (default)
       return `<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 30px;">
@@ -614,6 +625,33 @@ function ResumeEditor() {
     }
   };
 
+  // Add resize handler functions
+  const handleResizeStart = (e) => {
+    e.preventDefault();
+    setIsResizing(true);
+    document.addEventListener('mousemove', handleResize);
+    document.addEventListener('mouseup', handleResizeEnd);
+  };
+
+  const handleResize = (e) => {
+    if (isResizing) {
+      // Calculate percentage based on mouse position
+      const containerWidth = document.getElementById('editor-container').offsetWidth;
+      const newEditorWidth = (e.clientX / containerWidth) * 100;
+      
+      // Constrain width between 30% and 85%
+      if (newEditorWidth >= 30 && newEditorWidth <= 85) {
+        setEditorWidth(newEditorWidth);
+      }
+    }
+  };
+
+  const handleResizeEnd = () => {
+    setIsResizing(false);
+    document.removeEventListener('mousemove', handleResize);
+    document.removeEventListener('mouseup', handleResizeEnd);
+  };
+
   if (loading) {
     return (
       <Box
@@ -687,12 +725,44 @@ function ResumeEditor() {
   }
 
   return (
-    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', pb: 0 }}>
+    <Box sx={{ 
+      bgcolor: isResizing ? 'rgba(25, 118, 210, 0.02)' : 'background.default', 
+      minHeight: '100vh', 
+      display: 'flex', 
+      flexDirection: 'column',
+      transition: isResizing ? 'none' : 'background-color 0.3s'
+    }}>
+      {/* Render a guide during resize */}
+      {isResizing && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            bgcolor: 'transparent',
+            zIndex: 9999,
+            pointerEvents: 'none',
+            '::after': {
+              content: '""',
+              position: 'absolute',
+              left: `${editorWidth}%`,
+              top: 0,
+              width: '1px',
+              height: '100%',
+              bgcolor: 'primary.main',
+              boxShadow: '0 0 8px rgba(25, 118, 210, 0.6)'
+            }
+          }}
+        />
+      )}
       <ShareEmailModal 
         open={showShareEmailModal} 
-        onClose={() => setShowShareEmailModal(false)}
-        resumeId={id}
+        onClose={() => setShowShareEmailModal(false)} 
+        resumeId={id} 
         resumeTitle={title}
+        template={template} 
       />
       <GrammarAnalysisModal
         open={showGrammarModal}
@@ -723,6 +793,21 @@ function ResumeEditor() {
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
             {title}
           </Typography>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+            <Chip
+              icon={<DesignServicesIcon />}
+              label={`${template.charAt(0).toUpperCase() + template.slice(1)} Template`}
+              size="small"
+              color={
+                template === 'professional' ? 'default' : 
+                template === 'creative' ? 'secondary' : 
+                'primary'
+              }
+              sx={{ mr: 2 }}
+            />
+          </Box>
+          
           <Button
             variant="contained"
             color="primary"
@@ -732,15 +817,10 @@ function ResumeEditor() {
             sx={{ 
               mx: 1,
               px: 2,
-              boxShadow: 2,
               transition: 'all 0.3s',
               '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: 4
-              },
-              '&:active': {
-                transform: 'translateY(1px)',
-                boxShadow: 1
+                bgcolor: 'primary.dark',
+                transform: 'translateY(-2px)'
               }
             }}
           >
@@ -758,14 +838,16 @@ function ResumeEditor() {
             sx={{ 
               mx: 1,
               px: 2,
+              borderWidth: '2px',
               transition: 'all 0.3s',
               '&:hover': {
+                borderWidth: '2px',
                 bgcolor: 'rgba(25, 118, 210, 0.08)',
                 transform: 'translateY(-2px)'
               }
             }}
           >
-            Download
+            Export
           </Button>
           <Button
             variant="outlined"
@@ -774,8 +856,10 @@ function ResumeEditor() {
             sx={{ 
               mx: 1,
               px: 2,
+              borderWidth: '2px',
               transition: 'all 0.3s',
               '&:hover': {
+                borderWidth: '2px',
                 bgcolor: 'rgba(25, 118, 210, 0.08)',
                 transform: 'translateY(-2px)'
               }
@@ -794,7 +878,8 @@ function ResumeEditor() {
             mb: 0, 
             borderRadius: 0,
             position: 'relative',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            flexShrink: 0
           }}
         >
           <Box sx={{ 
@@ -837,216 +922,241 @@ function ResumeEditor() {
 
           {showTemplates && (
             <Box sx={{ py: 2, px: 3, bgcolor: 'grey.50' }}>
-              <Grid container spacing={3} sx={{ mt: 0 }}>
-                <Grid item xs={12} sm={4}>
-                  <Paper 
-                    elevation={template === 'professional' ? 4 : 1}
-                    sx={{
-                      p: 2,
-                      cursor: 'pointer',
-                      border: template === 'professional' ? '2px solid' : '1px solid',
-                      borderColor: template === 'professional' ? 'primary.main' : 'divider',
-                      borderRadius: 2,
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        transform: 'translateY(-5px)',
-                        boxShadow: 3
-                      },
-                      position: 'relative',
-                      overflow: 'hidden'
-                    }}
+              <Box sx={{ mt: 3, mb: 4 }}>
+                <Typography 
+                  variant="h6" 
+                  sx={{ 
+                    mb: 2, 
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}
+                >
+                  <DesignServicesIcon fontSize="small" />
+                  Choose Template Style
+                </Typography>
+                
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Select a template that matches your desired style and industry
+                </Typography>
+                
+                <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+                  {/* Professional Template */}
+                  <Paper
+                    elevation={template === 'professional' ? 8 : 1}
                     onClick={() => handleTemplateSelect('professional')}
+                    sx={{
+                      flex: 1,
+                      p: 1,
+                      cursor: 'pointer',
+                      position: 'relative',
+                      transition: 'all 0.3s',
+                      borderRadius: 2,
+                      overflow: 'hidden',
+                      border: template === 'professional' ? '2px solid #1e88e5' : '2px solid transparent',
+                      transform: template === 'professional' ? 'translateY(-4px)' : 'none',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: 4
+                      }
+                    }}
                   >
                     {template === 'professional' && (
-                      <Box sx={{ 
-                        position: 'absolute',
-                        top: 10,
-                        right: 10,
-                        bgcolor: 'primary.main',
-                        color: 'white',
-                        borderRadius: '50%',
-                        width: 24,
-                        height: 24,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        zIndex: 1
-                      }}>
-                        ✓
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          right: 0,
+                          bgcolor: '#1e88e5',
+                          color: 'white',
+                          p: 0.5,
+                          px: 1,
+                          borderBottomLeftRadius: 8,
+                          zIndex: 1,
+                          fontSize: 12,
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        SELECTED
                       </Box>
                     )}
-                    <Box 
-                      sx={{ 
-                        height: 150, 
-                        bgcolor: 'grey.100', 
-                        mb: 2, 
-                        borderRadius: 1,
+                    <Box sx={{ height: 100, overflow: 'hidden', mb: 1, borderRadius: 1 }}>
+                      <div style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        background: 'linear-gradient(180deg, #f5f5f5 0%, #e0e0e0 100%)',
                         display: 'flex',
                         flexDirection: 'column',
-                        p: 1
-                      }}
-                    >
-                      <Box sx={{ height: '20%', bgcolor: 'grey.300', width: '70%', mx: 'auto', mb: 1 }} />
-                      <Box sx={{ display: 'flex', height: '70%', gap: 1 }}>
-                        <Box sx={{ width: '30%', bgcolor: 'primary.100' }} />
-                        <Box sx={{ width: '70%' }}>
-                          <Box sx={{ height: '20%', bgcolor: 'grey.300', mb: 1 }} />
-                          <Box sx={{ height: '20%', bgcolor: 'grey.300', mb: 1, width: '80%' }} />
-                          <Box sx={{ height: '20%', bgcolor: 'grey.300', width: '60%' }} />
-                        </Box>
-                      </Box>
+                        padding: '10px',
+                        boxSizing: 'border-box'
+                      }}>
+                        <div style={{ height: '20%', backgroundColor: '#1e3a8a', borderRadius: '2px', marginBottom: '6px' }}></div>
+                        <div style={{ display: 'flex', gap: '6px', height: '10%' }}>
+                          <div style={{ flex: 1, backgroundColor: '#bbdefb', borderRadius: '2px' }}></div>
+                          <div style={{ flex: 1, backgroundColor: '#bbdefb', borderRadius: '2px' }}></div>
+                        </div>
+                        <div style={{ marginTop: '6px', height: '8%', backgroundColor: '#e0e0e0', borderRadius: '2px' }}></div>
+                        <div style={{ marginTop: '6px', height: '8%', backgroundColor: '#e0e0e0', borderRadius: '2px' }}></div>
+                        <div style={{ marginTop: '6px', height: '8%', backgroundColor: '#e0e0e0', borderRadius: '2px' }}></div>
+                      </div>
                     </Box>
-                    <Typography variant="subtitle1" fontWeight="bold" align="center">
+                    <Typography align="center" fontWeight={600} sx={{ mb: 0.5 }}>
                       Professional
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" align="center">
-                      Classic, corporate-friendly design
+                    <Typography variant="caption" color="text.secondary" align="center" sx={{ display: 'block' }}>
+                      Traditional, clean layout ideal for corporate roles
                     </Typography>
                   </Paper>
-                </Grid>
-                
-                <Grid item xs={12} sm={4}>
-                  <Paper 
-                    elevation={template === 'creative' ? 4 : 1}
-                    sx={{
-                      p: 2,
-                      cursor: 'pointer',
-                      border: template === 'creative' ? '2px solid' : '1px solid',
-                      borderColor: template === 'creative' ? 'primary.main' : 'divider',
-                      borderRadius: 2,
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        transform: 'translateY(-5px)',
-                        boxShadow: 3
-                      },
-                      position: 'relative',
-                      overflow: 'hidden'
-                    }}
+
+                  {/* Creative Template */}
+                  <Paper
+                    elevation={template === 'creative' ? 8 : 1}
                     onClick={() => handleTemplateSelect('creative')}
+                    sx={{
+                      flex: 1,
+                      p: 1,
+                      cursor: 'pointer',
+                      position: 'relative',
+                      transition: 'all 0.3s',
+                      borderRadius: 2,
+                      overflow: 'hidden',
+                      border: template === 'creative' ? '2px solid #9c27b0' : '2px solid transparent',
+                      transform: template === 'creative' ? 'translateY(-4px)' : 'none',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: 4
+                      }
+                    }}
                   >
                     {template === 'creative' && (
-                      <Box sx={{ 
-                        position: 'absolute',
-                        top: 10,
-                        right: 10,
-                        bgcolor: 'secondary.main',
-                        color: 'white',
-                        borderRadius: '50%',
-                        width: 24,
-                        height: 24,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        zIndex: 1
-                      }}>
-                        ✓
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          right: 0,
+                          bgcolor: '#9c27b0',
+                          color: 'white',
+                          p: 0.5,
+                          px: 1,
+                          borderBottomLeftRadius: 8,
+                          zIndex: 1,
+                          fontSize: 12,
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        SELECTED
                       </Box>
                     )}
-                    <Box 
-                      sx={{ 
-                        height: 150, 
-                        bgcolor: 'grey.100', 
-                        mb: 2, 
-                        borderRadius: 1,
+                    <Box sx={{ height: 100, overflow: 'hidden', mb: 1, borderRadius: 1 }}>
+                      <div style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        background: 'linear-gradient(180deg, #f8f0fc 0%, #f3e5f5 100%)',
                         display: 'flex',
                         flexDirection: 'column',
-                        p: 1
-                      }}
-                    >
-                      <Box sx={{ height: '30%', bgcolor: 'secondary.light', borderRadius: '50%', width: '30%', mx: 'auto', mb: 1 }} />
-                      <Box sx={{ display: 'flex', height: '60%', gap: 1, flexDirection: 'column' }}>
-                        <Box sx={{ height: '30%', bgcolor: 'grey.300', width: '80%', mx: 'auto', borderRadius: 10 }} />
-                        <Box sx={{ height: '30%', display: 'flex', justifyContent: 'center', gap: 1 }}>
-                          <Box sx={{ height: '100%', width: '20%', bgcolor: 'secondary.100', borderRadius: 1 }} />
-                          <Box sx={{ height: '100%', width: '20%', bgcolor: 'secondary.200', borderRadius: 1 }} />
-                          <Box sx={{ height: '100%', width: '20%', bgcolor: 'secondary.300', borderRadius: 1 }} />
-                        </Box>
-                      </Box>
+                        alignItems: 'center',
+                        padding: '10px',
+                        boxSizing: 'border-box'
+                      }}>
+                        <div style={{ width: '30px', height: '30px', borderRadius: '50%', backgroundColor: '#9c27b0', marginBottom: '6px' }}></div>
+                        <div style={{ height: '12%', width: '60%', backgroundColor: '#ce93d8', borderRadius: '2px', marginBottom: '6px' }}></div>
+                        <div style={{ height: '8%', width: '80%', backgroundColor: '#e1bee7', borderRadius: '2px', marginBottom: '10px' }}></div>
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'center' }}>
+                          <div style={{ height: '10px', width: '30px', backgroundColor: '#f3e5f5', borderRadius: '10px' }}></div>
+                          <div style={{ height: '10px', width: '40px', backgroundColor: '#f3e5f5', borderRadius: '10px' }}></div>
+                          <div style={{ height: '10px', width: '35px', backgroundColor: '#f3e5f5', borderRadius: '10px' }}></div>
+                        </div>
+                      </div>
                     </Box>
-                    <Typography variant="subtitle1" fontWeight="bold" align="center">
+                    <Typography align="center" fontWeight={600} sx={{ mb: 0.5 }}>
                       Creative
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" align="center">
-                      Modern design for creative fields
+                    <Typography variant="caption" color="text.secondary" align="center" sx={{ display: 'block' }}>
+                      Modern design for creative and design roles
                     </Typography>
                   </Paper>
-                </Grid>
-                
-                <Grid item xs={12} sm={4}>
-                  <Paper 
-                    elevation={template === 'modern' ? 4 : 1}
-                    sx={{
-                      p: 2,
-                      cursor: 'pointer',
-                      border: template === 'modern' ? '2px solid' : '1px solid',
-                      borderColor: template === 'modern' ? 'primary.main' : 'divider',
-                      borderRadius: 2,
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        transform: 'translateY(-5px)',
-                        boxShadow: 3
-                      },
-                      position: 'relative',
-                      overflow: 'hidden'
-                    }}
+
+                  {/* Modern Template */}
+                  <Paper
+                    elevation={template === 'modern' ? 8 : 1}
                     onClick={() => handleTemplateSelect('modern')}
+                    sx={{
+                      flex: 1,
+                      p: 1,
+                      cursor: 'pointer',
+                      position: 'relative',
+                      transition: 'all 0.3s',
+                      borderRadius: 2,
+                      overflow: 'hidden',
+                      border: template === 'modern' ? '2px solid #1976d2' : '2px solid transparent',
+                      transform: template === 'modern' ? 'translateY(-4px)' : 'none',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: 4
+                      }
+                    }}
                   >
                     {template === 'modern' && (
-                      <Box sx={{ 
-                        position: 'absolute',
-                        top: 10,
-                        right: 10,
-                        bgcolor: 'info.main',
-                        color: 'white',
-                        borderRadius: '50%',
-                        width: 24,
-                        height: 24,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '14px',
-                        fontWeight: 'bold',
-                        zIndex: 1
-                      }}>
-                        ✓
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          right: 0,
+                          bgcolor: '#1976d2',
+                          color: 'white',
+                          p: 0.5,
+                          px: 1,
+                          borderBottomLeftRadius: 8,
+                          zIndex: 1,
+                          fontSize: 12,
+                          fontWeight: 'bold',
+                        }}
+                      >
+                        SELECTED
                       </Box>
                     )}
-                    <Box 
-                      sx={{ 
-                        height: 150, 
-                        bgcolor: 'grey.100', 
-                        mb: 2, 
-                        borderRadius: 1,
+                    <Box sx={{ height: 100, overflow: 'hidden', mb: 1, borderRadius: 1 }}>
+                      <div style={{ 
+                        width: '100%', 
+                        height: '100%', 
                         display: 'flex',
-                        p: 1
-                      }}
-                    >
-                      <Box sx={{ width: '40%', bgcolor: 'primary.dark', mr: 1 }} />
-                      <Box sx={{ width: '60%', display: 'flex', flexDirection: 'column', gap: 1 }}>
-                        <Box sx={{ height: '25%', bgcolor: 'grey.300' }} />
-                        <Box sx={{ height: '25%', bgcolor: 'grey.300', width: '80%' }} />
-                        <Box sx={{ height: '25%', bgcolor: 'grey.300', width: '60%' }} />
-                      </Box>
+                        padding: '0',
+                        boxSizing: 'border-box',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{ width: '30%', height: '100%', backgroundColor: '#1976d2', padding: '6px' }}>
+                          <div style={{ height: '10%', width: '80%', backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: '2px', marginBottom: '6px' }}></div>
+                          <div style={{ height: '8%', width: '90%', backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: '2px', marginBottom: '6px' }}></div>
+                          <div style={{ height: '8%', width: '70%', backgroundColor: 'rgba(255,255,255,0.6)', borderRadius: '2px' }}></div>
+                        </div>
+                        <div style={{ width: '70%', height: '100%', padding: '6px', backgroundColor: '#f5f5f5' }}>
+                          <div style={{ height: '12%', width: '80%', backgroundColor: '#bbdefb', borderRadius: '2px', marginBottom: '6px' }}></div>
+                          <div style={{ height: '8%', width: '90%', backgroundColor: '#e1f5fe', borderRadius: '2px', marginBottom: '6px' }}></div>
+                          <div style={{ height: '8%', width: '60%', backgroundColor: '#e1f5fe', borderRadius: '2px' }}></div>
+                        </div>
+                      </div>
                     </Box>
-                    <Typography variant="subtitle1" fontWeight="bold" align="center">
+                    <Typography align="center" fontWeight={600} sx={{ mb: 0.5 }}>
                       Modern
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" align="center">
-                      Contemporary, balanced layout
+                    <Typography variant="caption" color="text.secondary" align="center" sx={{ display: 'block' }}>
+                      Two-column layout with sidebar for technical roles
                     </Typography>
                   </Paper>
-                </Grid>
-              </Grid>
+                </Box>
+              </Box>
             </Box>
           )}
         </Paper>
       )}
       
-      <Box sx={{ width: '100%', height: 'calc(100vh - 64px)' }}>
+      <Box sx={{ 
+        width: '100%', 
+        flexGrow: 1,
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
         <Snackbar
           open={!!message}
           autoHideDuration={3000}
@@ -1054,7 +1164,7 @@ function ResumeEditor() {
           message={message}
           anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         />
-        
+            
         {error && (
           <Alert severity="error" sx={{ borderRadius: 0 }}>
             {error}
@@ -1062,7 +1172,7 @@ function ResumeEditor() {
         )}
         
         {step === 1 && (
-          <Grid container sx={{ height: '100%' }}>
+          <Grid container sx={{ height: '100%', overflow: 'auto' }}>
             <Grid item xs={12} sx={{ p: 4 }}>
               <Paper elevation={3} sx={{ p: 4, mb: 6, borderRadius: 2 }}>
                 <Box sx={{ textAlign: 'center', py: 4 }}>
@@ -1073,7 +1183,7 @@ function ResumeEditor() {
                     Choose a template that best represents your professional style.
                   </Typography>
                   
-                  <Grid container spacing={3} sx={{ mt: 2 }}>
+                  <Grid container spacing={4} sx={{ mt: 2 }}>
                     <Grid item xs={12} sm={4}>
                       <Paper 
                         elevation={template === 'professional' ? 4 : 1}
@@ -1308,9 +1418,19 @@ function ResumeEditor() {
         )}
         
         {step === 2 && (
-          <Box sx={{ display: 'flex', height: 'calc(100vh - 120px)', overflow: 'hidden' }}>
-            {/* Editor Section - 2/3 of width */}
-            <Box sx={{ width: '66.666%', height: '100%', position: 'relative' }}>
+          <Box 
+            id="editor-container"
+            sx={{ 
+              display: 'flex', 
+              flex: 1,
+              position: 'relative'
+            }}
+          >
+            {/* Editor Section - dynamic width */}
+            <Box sx={{ 
+              width: `${editorWidth}%`, 
+              position: 'relative'
+            }}>
               {editorFailed ? (
                 <Box sx={{ 
                   p: 4, 
@@ -1364,7 +1484,8 @@ function ResumeEditor() {
                   <Editor
                     apiKey="w9wb2nr9fpk741lb6kzvabnhlzj7aimkgqbt1jdvnwi9qgky"
                     init={{
-                      height: '100%',
+                      min_height: 500,
+                      height: 'auto',
                       menubar: true,
                       plugins: [
                         'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
@@ -1376,36 +1497,81 @@ function ResumeEditor() {
                         'alignright alignjustify | bullist numlist outdent indent | ' +
                         'removeformat | help',
                       content_style: `
-                        body { 
-                          font-family: Helvetica, Arial, sans-serif; 
-                          font-size: 14px; 
-                          padding: 20px; 
-                          min-height: calc(100vh - 160px);
-                          max-width: 800px;
+                        body {
+                          font-family: Arial, sans-serif;
                           margin: 0 auto;
+                          max-width: 800px;
+                          padding: 20px 30px;
+                          min-height: 500px;
+                          background-color: white;
+                          box-shadow: 0 0 15px rgba(0,0,0,0.05);
+                          border-radius: 8px;
                         }
-                        h1, h2, h3 { margin-top: 1em; margin-bottom: 0.5em; }
-                        p { margin: 0.5em 0; }
-                        ul, ol { margin: 0.5em 0; padding-left: 2em; }
+                        h1, h2, h3, h4, h5, h6 {
+                          margin-top: 1.5em;
+                          margin-bottom: 0.5em;
+                          color: #1976d2;
+                          font-weight: 600;
+                        }
+                        h1 { font-size: 28px; margin-top: 0; text-align: center; }
+                        h2 { font-size: 20px; border-bottom: 2px solid #e0e0e0; padding-bottom: 5px; }
+                        h3 { font-size: 18px; }
+                        p { margin: 0.5em 0; line-height: 1.6; }
+                        ul, ol { margin: 0.5em 0; padding-left: 1.5em; }
+                        li { margin-bottom: 0.5em; }
+                        .template-modern table { width: 100%; border-collapse: collapse; }
+                        .template-modern td:first-child { background-color: #1976d2; color: white; width: 30%; vertical-align: top; padding: 15px; }
+                        .template-modern td:last-child { width: 70%; vertical-align: top; padding: 15px; }
+                        .template-creative .skill-tag { background-color: #f3e5f5; color: #9c27b0; padding: 4px 8px; border-radius: 10px; display: inline-block; margin: 3px; }
                       `,
-                      skin: 'oxide',
-                      resize: false,
-                      branding: false,
-                      statusbar: true,
-                      relative_urls: false,
-                      remove_script_host: false,
-                      convert_urls: false,
                       setup: function(editor) {
                         editor.on('init', function() {
-                          // Make the editor container take the full height
+                          // Make the editor container more responsive
                           const container = editor.getContainer();
                           container.style.display = 'flex';
                           container.style.flexDirection = 'column';
-                          container.style.height = '100%';
+                          container.style.borderRadius = '8px';
+                          container.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)';
+                          container.style.marginBottom = '20px';
                           
-                          // Ensure the editable area fills the remaining space
-                          const editorArea = editor.getContentAreaContainer();
-                          editorArea.style.flex = '1';
+                          // Better styling for the iframe
+                          const editorIframe = editor.getContentAreaContainer().querySelector('iframe');
+                          if (editorIframe) {
+                            editorIframe.style.backgroundColor = '#ffffff';
+                            editorIframe.style.minHeight = '500px';
+                          }
+                          
+                          // Apply template class to the body
+                          if (template) {
+                            const body = editor.getBody();
+                            body.classList.add(`template-${template}`);
+                          }
+                        });
+                        
+                        // Auto-resize handling
+                        editor.on('NodeChange SetContent KeyUp', function() {
+                          const doc = editor.getDoc();
+                          const body = doc.body;
+                          const height = body.scrollHeight;
+                          
+                          // Minimum height
+                          const minHeight = 500;
+                          const newHeight = Math.max(height, minHeight);
+                          
+                          // Set editor height
+                          const iframe = editor.getContentAreaContainer().querySelector('iframe');
+                          if (iframe) {
+                            iframe.style.height = `${newHeight}px`;
+                          }
+                        });
+                        
+                        // Listen for template changes
+                        editor.on('TemplateChange', function(e) {
+                          const body = editor.getBody();
+                          // Remove all template classes
+                          body.classList.remove('template-professional', 'template-creative', 'template-modern');
+                          // Add new template class
+                          body.classList.add(`template-${e.template}`);
                         });
                       }
                     }}
@@ -1420,29 +1586,107 @@ function ResumeEditor() {
               )}
             </Box>
 
-            {/* AI Tools and Controls - 1/3 of width */}
+            {/* Resizer */}
+            <Box
+              ref={resizeRef}
+              sx={{
+                width: '8px',
+                backgroundColor: isResizing ? 'rgba(25, 118, 210, 0.2)' : 'transparent',
+                cursor: 'col-resize',
+                transition: 'background-color 0.2s',
+                '&:hover': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.1)',
+                },
+                '&:active': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.2)',
+                },
+                zIndex: 10,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative'
+              }}
+              onMouseDown={handleResizeStart}
+            >
+              <Box
+                sx={{
+                  position: 'absolute',
+                  width: '4px',
+                  height: '36px',
+                  bgcolor: isResizing ? 'primary.main' : '#bdbdbd',
+                  borderRadius: '2px',
+                  transition: 'background-color 0.2s',
+                  '&::before, &::after': {
+                    content: '""',
+                    position: 'absolute',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '1px',
+                    height: '36px',
+                    bgcolor: isResizing ? 'primary.light' : '#e0e0e0'
+                  },
+                  '&::before': {
+                    left: 'calc(50% - 2px)',
+                  },
+                  '&::after': {
+                    left: 'calc(50% + 2px)',
+                  }
+                }}
+              />
+            </Box>
+
+            {/* AI Tools and Controls - dynamic width */}
             <Box 
               sx={{ 
-                width: '33.333%', 
-                height: '100%',
+                width: `${100 - editorWidth}%`, 
                 bgcolor: 'background.paper',
                 borderLeft: '1px solid',
                 borderColor: 'divider',
-                overflow: 'auto'
+                boxShadow: 'inset 4px 0 10px rgba(0,0,0,0.03)',
+                display: 'flex',
+                flexDirection: 'column'
               }}
             >
-              <Box sx={{ p: 3 }}>
-                <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
-                  <SmartToyIcon sx={{ mr: 1, color: 'primary.main' }} />
-                  Resume Tools
+              <Box
+                sx={{
+                  p: 3,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  background: 'linear-gradient(to right, #fafafa, #f5f5f5)',
+                }}
+              >
+                <Typography 
+                  variant="h5" 
+                  gutterBottom
+                  sx={{ 
+                    fontWeight: 600,
+                    color: 'primary.main',
+                    fontSize: '1.5rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1
+                  }}
+                >
+                  <span role="img" aria-label="AI" style={{ fontSize: '1.6rem' }}>🤖</span>
+                  AI Resume Tools
                 </Typography>
-
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Enhance your resume with our powerful AI features
+                </Typography>
+              </Box>
+              
+              <Box sx={{ 
+                p: 3,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2
+              }}>
+                {/* Input fields with reduced margins */}
                 <TextField
                   fullWidth
                   label="Resume Title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  margin="normal"
                   size="small"
                   variant="outlined"
                   InputProps={{
@@ -1452,6 +1696,7 @@ function ResumeEditor() {
                       </InputAdornment>
                     ),
                   }}
+                  sx={{ mb: 1 }}
                 />
 
                 <TextField
@@ -1459,7 +1704,6 @@ function ResumeEditor() {
                   label="Job Title"
                   value={jobTitle}
                   onChange={(e) => setJobTitle(e.target.value)}
-                  margin="normal"
                   size="small"
                   variant="outlined"
                   InputProps={{
@@ -1469,6 +1713,7 @@ function ResumeEditor() {
                       </InputAdornment>
                     ),
                   }}
+                  sx={{ mb: 1 }}
                 />
 
                 <TextField
@@ -1476,7 +1721,6 @@ function ResumeEditor() {
                   label="Target Company"
                   value={targetCompany}
                   onChange={(e) => setTargetCompany(e.target.value)}
-                  margin="normal"
                   size="small"
                   variant="outlined"
                   InputProps={{
@@ -1486,6 +1730,7 @@ function ResumeEditor() {
                       </InputAdornment>
                     ),
                   }}
+                  sx={{ mb: 1 }}
                 />
 
                 <TextField
@@ -1493,7 +1738,6 @@ function ResumeEditor() {
                   label="Target Industry"
                   value={targetIndustry}
                   onChange={(e) => setTargetIndustry(e.target.value)}
-                  margin="normal"
                   size="small"
                   variant="outlined"
                   InputProps={{
@@ -1503,130 +1747,10 @@ function ResumeEditor() {
                       </InputAdornment>
                     ),
                   }}
+                  sx={{ mb: 1 }}
                 />
 
-                <Divider sx={{ my: 2 }} />
-
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Resume Analysis
-                </Typography>
-
-                <Grid container spacing={2} sx={{ mb: 2 }}>
-                  <Grid item xs={6}>
-                    <Card variant="outlined" sx={{ 
-                      height: '100%',
-                      transition: 'all 0.3s',
-                      '&:hover': { boxShadow: 2 }
-                    }}>
-                      <CardContent>
-                        <Typography variant="body2" color="text.secondary">
-                          ATS Score
-                        </Typography>
-                        {atsScore ? (
-                          <>
-                            <Typography variant="h5" color="primary" sx={{ mt: 1 }}>
-                              {atsScore}%
-                            </Typography>
-                            <LinearProgress 
-                              variant="determinate" 
-                              value={atsScore} 
-                              sx={{ mt: 1, height: 6, borderRadius: 3 }} 
-                              color={atsScore > 70 ? "success" : atsScore > 40 ? "warning" : "error"}
-                            />
-                          </>
-                        ) : (
-                          <Typography variant="body2" sx={{ fontStyle: 'italic', mt: 1 }}>
-                            Not analyzed
-                          </Typography>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Card variant="outlined" sx={{ 
-                      height: '100%',
-                      transition: 'all 0.3s',
-                      '&:hover': { boxShadow: 2 }
-                    }}>
-                      <CardContent>
-                        <Typography variant="body2" color="text.secondary">
-                          Grammar Score
-                        </Typography>
-                        {grammarScore ? (
-                          <>
-                            <Typography variant="h5" color="primary" sx={{ mt: 1 }}>
-                              {grammarScore}%
-                            </Typography>
-                            <LinearProgress 
-                              variant="determinate" 
-                              value={grammarScore} 
-                              sx={{ mt: 1, height: 6, borderRadius: 3 }} 
-                              color={grammarScore > 70 ? "success" : grammarScore > 40 ? "warning" : "error"}
-                            />
-                          </>
-                        ) : (
-                          <Typography variant="body2" sx={{ fontStyle: 'italic', mt: 1 }}>
-                            Not analyzed
-                          </Typography>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                </Grid>
-                
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<AssessmentIcon />}
-                  onClick={analyzeATS}
-                  disabled={isAnalyzingATS}
-                  sx={{ 
-                    mb: 2,
-                    py: 1.2,
-                    borderWidth: '2px',
-                    transition: 'all 0.3s',
-                    '&:hover': {
-                      borderWidth: '2px',
-                      bgcolor: 'rgba(25, 118, 210, 0.04)',
-                      transform: 'translateY(-2px)'
-                    }
-                  }}
-                >
-                  {isAnalyzingATS ? (
-                    <>
-                      <CircularProgress size={20} color="primary" sx={{ mr: 1 }} />
-                      Analyzing...
-                    </>
-                  ) : 'Analyze ATS Score'}
-                </Button>
-                
-                <Button
-                  fullWidth
-                  variant="outlined"
-                  startIcon={<SpellcheckIcon />}
-                  onClick={checkGrammar}
-                  disabled={isCheckingGrammar}
-                  sx={{ 
-                    mb: 2,
-                    py: 1.2,
-                    borderWidth: '2px',
-                    transition: 'all 0.3s',
-                    '&:hover': {
-                      borderWidth: '2px',
-                      bgcolor: 'rgba(25, 118, 210, 0.04)',
-                      transform: 'translateY(-2px)'
-                    }
-                  }}
-                >
-                  {isCheckingGrammar ? (
-                    <>
-                      <CircularProgress size={20} color="primary" sx={{ mr: 1 }} />
-                      Checking...
-                    </>
-                  ) : 'Check Grammar'}
-                </Button>
-
-                <Divider sx={{ my: 2 }} />
+                <Divider sx={{ my: 1 }} />
 
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                   AI Resume Generator
@@ -1664,66 +1788,127 @@ function ResumeEditor() {
                   )}
                 </Button>
 
-                <Box sx={{ mt: 4 }} />
-
-                <Divider sx={{ my: 2 }} />
-
+                <Divider sx={{ my: 1 }} />
+                
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Actions
+                  Resume Analysis
                 </Typography>
 
+                <Grid container spacing={2} sx={{ mb: 1 }}>
+                  <Grid item xs={6}>
+                    <Card variant="outlined" sx={{ 
+                      height: '100%',
+                      transition: 'all 0.3s',
+                      '&:hover': { boxShadow: 2 }
+                    }}>
+                      <CardContent sx={{ py: 1, px: 1.5, '&:last-child': { pb: 1 } }}>
+                        <Typography variant="body2" color="text.secondary">
+                          ATS Score
+                        </Typography>
+                        {atsScore ? (
+                          <>
+                            <Typography variant="h5" color="primary" sx={{ mt: 1 }}>
+                              {atsScore}%
+                            </Typography>
+                            <LinearProgress 
+                              variant="determinate" 
+                              value={atsScore} 
+                              sx={{ mt: 1, height: 6, borderRadius: 3 }} 
+                              color={atsScore > 70 ? "success" : atsScore > 40 ? "warning" : "error"}
+                            />
+                          </>
+                        ) : (
+                          <Typography variant="body2" sx={{ fontStyle: 'italic', mt: 1 }}>
+                            Not analyzed
+                          </Typography>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={6}>
+                    <Card variant="outlined" sx={{ 
+                      height: '100%',
+                      transition: 'all 0.3s',
+                      '&:hover': { boxShadow: 2 }
+                    }}>
+                      <CardContent sx={{ py: 1, px: 1.5, '&:last-child': { pb: 1 } }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Grammar Score
+                        </Typography>
+                        {grammarScore ? (
+                          <>
+                            <Typography variant="h5" color="primary" sx={{ mt: 1 }}>
+                              {grammarScore}%
+                            </Typography>
+                            <LinearProgress 
+                              variant="determinate" 
+                              value={grammarScore} 
+                              sx={{ mt: 1, height: 6, borderRadius: 3 }} 
+                              color={grammarScore > 70 ? "success" : grammarScore > 40 ? "warning" : "error"}
+                            />
+                          </>
+                        ) : (
+                          <Typography variant="body2" sx={{ fontStyle: 'italic', mt: 1 }}>
+                            Not analyzed
+                          </Typography>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+                
                 <Button
                   fullWidth
-                  variant="contained"
-                  startIcon={<SaveIcon />}
-                  onClick={saveResume}
-                  disabled={saving}
-                  color="primary"
+                  variant="outlined"
+                  startIcon={<AssessmentIcon />}
+                  onClick={analyzeATS}
+                  disabled={isAnalyzingATS}
                   sx={{ 
-                    mb: 2,
-                    py: 1.2,
-                    boxShadow: 2,
+                    mb: 1,
+                    py: 1,
+                    borderWidth: '2px',
                     transition: 'all 0.3s',
                     '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: 4
-                    },
-                    '&:active': {
-                      transform: 'translateY(1px)',
-                      boxShadow: 1
+                      borderWidth: '2px',
+                      bgcolor: 'rgba(25, 118, 210, 0.04)',
+                      transform: 'translateY(-2px)'
                     }
                   }}
                 >
-                  {saving ? (
+                  {isAnalyzingATS ? (
                     <>
-                      <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
-                      Saving...
+                      <CircularProgress size={20} color="primary" sx={{ mr: 1 }} />
+                      Analyzing...
                     </>
-                  ) : 'Save Resume'}
+                  ) : 'Analyze ATS Score'}
                 </Button>
-
-                <Grid container spacing={2}>
-                  <Grid item xs={6}>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      startIcon={<DownloadIcon />}
-                      onClick={handleDownloadDocument}
-                    >
-                      Download
-                    </Button>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Button
-                      fullWidth
-                      variant="outlined"
-                      startIcon={<ShareIcon />}
-                      onClick={handleShareViaEmail}
-                    >
-                      Share
-                    </Button>
-                  </Grid>
-                </Grid>
+                
+                <Button
+                  fullWidth
+                  variant="outlined"
+                  startIcon={<SpellcheckIcon />}
+                  onClick={checkGrammar}
+                  disabled={isCheckingGrammar}
+                  sx={{ 
+                    mb: 1,
+                    py: 1,
+                    borderWidth: '2px',
+                    transition: 'all 0.3s',
+                    '&:hover': {
+                      borderWidth: '2px',
+                      bgcolor: 'rgba(25, 118, 210, 0.04)',
+                      transform: 'translateY(-2px)'
+                    }
+                  }}
+                >
+                  {isCheckingGrammar ? (
+                    <>
+                      <CircularProgress size={20} color="primary" sx={{ mr: 1 }} />
+                      Checking...
+                    </>
+                  ) : 'Check Grammar'}
+                </Button>
+                 
               </Box>
             </Box>
           </Box>
@@ -1733,4 +1918,4 @@ function ResumeEditor() {
   );
 }
 
-export default ResumeEditor;
+export default ResumeEditor; 

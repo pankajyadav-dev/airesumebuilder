@@ -22,7 +22,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import InfoIcon from '@mui/icons-material/Info';
 import SendIcon from '@mui/icons-material/Send';
 
-const ShareEmailModal = ({ open, onClose, resumeId, resumeTitle }) => {
+const ShareEmailModal = ({ open, onClose, resumeId, resumeTitle, template = 'professional' }) => {
   const [recipientEmail, setRecipientEmail] = useState('');
   const [subject, setSubject] = useState(`Resume: ${resumeTitle || 'My Resume'}`);
   const [message, setMessage] = useState('');
@@ -43,7 +43,8 @@ const ShareEmailModal = ({ open, onClose, resumeId, resumeTitle }) => {
         recipientEmail,
         subject,
         message,
-        documentFormat: 'docx' // Always use docx format
+        documentFormat: 'docx', // Always use docx format
+        template // Pass the template to the API
       });
 
       if (response.data.success) {

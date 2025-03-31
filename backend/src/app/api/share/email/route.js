@@ -73,9 +73,14 @@ async function shareEmailHandler(request) {
     
     // Create a complete HTML document with proper styling
     const htmlContent = resume.content;
+
+    // Get the template from resume metadata
+    const template = resume.template || 'professional';
+    console.log('Email Share: Using template:', template);
+    
     // Preserve inline styles by wrapping content in a style-preserving container
     const processedHtmlContent = `
-      <div class="resume-content">
+      <div class="resume-content template-${template}">
         ${htmlContent}
       </div>
     `;
@@ -87,6 +92,18 @@ async function shareEmailHandler(request) {
       <head>
         <meta charset="UTF-8">
         <title>${resume.title || 'Resume'}</title>
+        <style>
+          body { font-family: Arial, sans-serif; }
+          .template-professional h1 { color: #1e3a8a; }
+          .template-professional h2 { color: #1e3a8a; border-bottom: 1px solid #ddd; }
+          .template-creative h1 { color: #9c27b0; }
+          .template-creative h2 { color: #9c27b0; border-bottom: 2px solid #9c27b0; }
+          .template-modern h1 { color: #1976d2; }
+          .template-modern h2 { color: #1976d2; border-bottom: 2px solid #1976d2; }
+          .template-modern table { width: 100%; border-collapse: collapse; }
+          .template-modern td:first-child { background-color: #1976d2; color: white; width: 30%; }
+          .template-modern td:last-child { width: 70%; }
+        </style>
       </head>
       <body>
         ${processedHtmlContent}
@@ -129,38 +146,46 @@ async function shareEmailHandler(request) {
             height: 15840, // A4 height in twip (11 inches)
           },
           styleMap: [
-            'h1 => Heading1:24',
-            'h2 => Heading2:24',
-            'h3 => Heading3:24',
-            'p => Normal:24',
-            'ul => ListBullet:24',
-            '.resume-content => Normal:24',
-            '* => Normal:24'
+            'h1 => Heading1:28',
+            'h2 => Heading2:28',
+            'h3 => Heading3:28',
+            'p => Normal:28',
+            'ul => ListBullet:28',
+            'li => ListBullet:28',
+            'td => TableCell:28',
+            'table => Table',
+            'tr => TableRow',
+            '.resume-content => Normal:28',
+            '* => Normal:28'
           ],
           styles: {
             paragraphStyles: {
               'Heading1': {
-                run: { size: 24, bold: true, color: '#0056b3' }, // 12pt
+                run: { size: 28, bold: true }, // 14pt
                 paragraph: { spacing: { after: 160 } }
               },
               'Heading2': {
-                run: { size: 24, bold: true, color: '#0056b3' }, // 12pt
+                run: { size: 28, bold: true }, // 14pt
                 paragraph: { spacing: { before: 240, after: 120 } }
               },
               'Heading3': {
-                run: { size: 24, bold: true, color: '#0056b3' }, // 12pt
+                run: { size: 28, bold: true }, // 14pt
                 paragraph: { spacing: { after: 80 } }
               },
               'Normal': {
-                run: { size: 24 }, // 12pt
+                run: { size: 28 }, // 14pt
                 paragraph: { spacing: { after: 60 } }
               },
               'ListBullet': {
-                run: { size: 24 }, // 12pt
+                run: { size: 28 }, // 14pt
                 paragraph: { 
                   spacing: { after: 60 },
                   indent: { left: 720 } // 0.5 inch
                 }
+              },
+              'TableCell': {
+                run: { size: 28 }, // 14pt
+                paragraph: { spacing: { after: 60 } }
               }
             }
           },
@@ -170,41 +195,19 @@ async function shareEmailHandler(request) {
             }
           },
           font: 'Arial',
-          css: true, // This tells the library to try to process CSS
+          css: true, // Process CSS
           formattingPreservingSpace: true
         };
         
-        // Process the HTML content to remove any external dependencies
-        const processedHtml = fullHtmlDocument
-          // Convert any image src with external URLs to base64 or remove them
-          .replace(/<img[^>]+src="https?:\/\/[^">]+"[^>]*>/g, match => {
-            // Replace with placeholder or remove
-            return ''; // Just remove external images to avoid connection issues
-          })
-          // Force heading sizes to be consistent
-          .replace(/<h([1-6])[^>]*style="[^"]*"[^>]*>/g, '<h$1>')
-          .replace(/<h([1-6])[^>]*>/g, '<h$1>')
-          // Remove any complex styles that might cause issues
-          .replace(/style="[^"]*"/g, '')
-          // Remove any data attributes
-          .replace(/data-[^=]+=["'][^"']*["']/g, '')
-          // Replace non-standard HTML attributes
-          .replace(/contenteditable="[^"]*"/g, '')
-          .replace(/draggable="[^"]*"/g, '')
-          // Clean up any invalid tag nesting
-          .replace(/<\/?(meta|link|script)[^>]*>/g, '');
+        // Define timeout for conversion
+        const CONVERSION_TIMEOUT = 30000; // 30 seconds
         
-        // Convert HTML to DOCX with a timeout
-        const conversionPromise = HTMLtoDOCX(processedHtml, null, {
-          ...options,
-          externalStylesheets: [], // Don't fetch external stylesheets
-          preferCssStyles: true,   // Use CSS from the HTML
-          base64Images: false      // Don't fetch and convert images
-        });
-        
-        // Create a timeout promise
+        // Create promises for conversion and timeout
+        const conversionPromise = HTMLtoDOCX(fullHtmlDocument, null, options);
         const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Conversion timed out')), 15000); // 15 second timeout
+          setTimeout(() => {
+            reject(new Error('DOCX conversion timed out after 30 seconds'));
+          }, CONVERSION_TIMEOUT);
         });
         
         // Race the conversion against the timeout

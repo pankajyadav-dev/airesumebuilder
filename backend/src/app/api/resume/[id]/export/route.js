@@ -208,23 +208,27 @@ function getTemplateStyles(template) {
         paragraph: { spacing: { after: 160 } }
       },
       'Heading2': {
-        run: { size: 24, bold: true, color: '#1e3a8a' }, // 12pt
+        run: { size: 28, bold: true, color: '#1e3a8a' }, // 14pt
         paragraph: { spacing: { before: 240, after: 120 } }
       },
       'Heading3': {
-        run: { size: 24, bold: true, color: '#1e3a8a' }, // 12pt
+        run: { size: 28, bold: true, color: '#1e3a8a' }, // 14pt
         paragraph: { spacing: { after: 80 } }
       },
       'Normal': {
-        run: { size: 24 }, // 12pt
+        run: { size: 28 }, // 14pt
         paragraph: { spacing: { after: 60 } }
       },
       'ListBullet': {
-        run: { size: 24 }, // 12pt
+        run: { size: 28 }, // 14pt
         paragraph: { 
           spacing: { after: 60 },
           indent: { left: 720 } // 0.5 inch
         }
+      },
+      'TableCell': {
+        run: { size: 28 }, // 14pt
+        paragraph: { spacing: { after: 60 } }
       }
     }
   };
@@ -249,15 +253,15 @@ function getTemplateStyles(template) {
           paragraphStyles: {
             ...baseStyles.paragraphStyles,
             'Heading1': {
-              run: { size: 32, bold: true, color: '#9c27b0' }, // 16pt
+              run: { size: 28, bold: true, color: '#9c27b0' }, // 14pt
               paragraph: { spacing: { after: 200 } }
             },
             'Heading2': {
-              run: { size: 26, bold: true, color: '#9c27b0' }, // 13pt
+              run: { size: 28, bold: true, color: '#9c27b0' }, // 14pt
               paragraph: { spacing: { before: 240, after: 120 }, border: { bottom: { size: 4, space: 1, value: 'single', color: '#f3e5f5' } } }
             },
             'CreativeHeader': {
-              run: { size: 28, bold: false, color: '#666666' },
+              run: { size: 28, bold: false, color: '#666666' }, // 14pt
               paragraph: { spacing: { after: 160 }, alignment: 'center' }
             }
           }
@@ -298,8 +302,9 @@ function getTemplateStyles(template) {
         font: 'Arial',
         styleMap: [
           ...baseStyleMap,
-          'div.modern-sidebar => ModernSidebar',
-          'div.modern-main => ModernMain'
+          'td => TableCell',
+          'table => Table',
+          'tr => TableRow'
         ],
         styles: {
           paragraphStyles: {
@@ -309,12 +314,12 @@ function getTemplateStyles(template) {
               paragraph: { spacing: { after: 160 } }
             },
             'Heading2': {
-              run: { size: 24, bold: true, color: '#1976d2' }, // 12pt
+              run: { size: 28, bold: true, color: '#1976d2' }, // 14pt
               paragraph: { spacing: { before: 240, after: 120 }, border: { bottom: { size: 4, space: 1, value: 'single', color: '#1976d2' } } }
             },
-            'ModernSidebar': {
-              run: { size: 24, color: 'FFFFFF' },
-              paragraph: { spacing: { after: 120 }, shading: { fill: '1976d2' } }
+            'TableCell': {
+              run: { size: 28 }, // 14pt
+              paragraph: { spacing: { after: 60 } }
             }
           }
         },
@@ -330,9 +335,25 @@ function getTemplateStyles(template) {
             border-bottom: 2px solid #1976d2;
             padding-bottom: 5px;
           }
-          .template-modern .sidebar {
+          .template-modern table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+          .template-modern td:first-child {
             background-color: #1976d2;
             color: white;
+            width: 30%;
+            vertical-align: top;
+          }
+          .template-modern td:last-child {
+            width: 70%;
+            vertical-align: top;
+          }
+          .template-modern ul {
+            padding-left: 20px;
+          }
+          .template-modern li {
+            margin-bottom: 8px;
           }
         `
       };
@@ -369,4 +390,4 @@ function getTemplateStyles(template) {
   }
 }
 
-export const POST = corsMiddleware(exportResumeDocument); 
+export const POST = corsMiddleware(exportResumeDocument);
