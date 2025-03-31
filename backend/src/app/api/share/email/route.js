@@ -20,7 +20,18 @@ async function shareEmailHandler(request) {
       );
     }
     
-    const { resumeId, recipientEmail, subject, message, documentFormat } = await request.json();
+    const requestData = await request.json();
+    const { 
+      resumeId, 
+      recipientEmail, 
+      subject, 
+      message, 
+      documentFormat,
+      template: requestTemplate,
+      content: requestContent,
+      options = {} 
+    } = requestData;
+    
     // Always use DOCX format regardless of what the client sends
     const format = 'docx';
     
@@ -71,12 +82,17 @@ async function shareEmailHandler(request) {
       }
     });
     
-    // Create a complete HTML document with proper styling
-    const htmlContent = resume.content;
+    // Use content from the request if provided, otherwise use from the database
+    let htmlContent = requestContent || resume.content;
 
-    // Get the template from resume metadata
-    const template = resume.template || 'professional';
+    // Get the template from resume metadata or request
+    const template = requestTemplate || resume.template || 'professional';
     console.log('Email Share: Using template:', template);
+    
+    // Normalize font sizes to ensure consistency before document conversion
+    const fontSize = options.fontSize || 14;
+    console.log(`Email Share: Normalizing font sizes to ${fontSize}px`);
+    htmlContent = normalizeFontSizes(htmlContent, fontSize);
     
     // Preserve inline styles by wrapping content in a style-preserving container
     const processedHtmlContent = `
@@ -92,20 +108,8 @@ async function shareEmailHandler(request) {
       <head>
         <meta charset="UTF-8">
         <title>${resume.title || 'Resume'}</title>
-        <style>
-          body { font-family: Arial, sans-serif; }
-          .template-professional h1 { color: #1e3a8a; }
-          .template-professional h2 { color: #1e3a8a; border-bottom: 1px solid #ddd; }
-          .template-creative h1 { color: #9c27b0; }
-          .template-creative h2 { color: #9c27b0; border-bottom: 2px solid #9c27b0; }
-          .template-modern h1 { color: #1976d2; }
-          .template-modern h2 { color: #1976d2; border-bottom: 2px solid #1976d2; }
-          .template-modern table { width: 100%; border-collapse: collapse; }
-          .template-modern td:first-child { background-color: #1976d2; color: white; width: 30%; }
-          .template-modern td:last-child { width: 70%; }
-        </style>
       </head>
-      <body>
+      <body class="template-${template}">
         ${processedHtmlContent}
       </body>
       </html>
@@ -132,8 +136,11 @@ async function shareEmailHandler(request) {
       // Always use DOCX format
       console.log('Email Share: Converting to DOCX for email attachment');
       try {
+        const fontSize = options.fontSize || 14;
+        const fontSizePoint = fontSize * 2; // Convert to Word's point system
+        
         // Configure document options
-        const options = {
+        const docxOptions = {
           margin: {
             top: 1440, // 1 inch in twip
             right: 1440,
@@ -146,45 +153,31 @@ async function shareEmailHandler(request) {
             height: 15840, // A4 height in twip (11 inches)
           },
           styleMap: [
-            'h1 => Heading1:28',
-            'h2 => Heading2:28',
-            'h3 => Heading3:28',
-            'p => Normal:28',
-            'ul => ListBullet:28',
-            'li => ListBullet:28',
-            'td => TableCell:28',
-            'table => Table',
-            'tr => TableRow',
-            '.resume-content => Normal:28',
-            '* => Normal:28'
+            `h1 => Normal:${fontSizePoint}`,
+            `h2 => Normal:${fontSizePoint}`,
+            `h3 => Normal:${fontSizePoint}`,
+            `p => Normal:${fontSizePoint}`,
+            `ul => ListBullet:${fontSizePoint}`,
+            `li => ListBullet:${fontSizePoint}`,
+            `td => TableCell:${fontSizePoint}`,
+            `span => Normal:${fontSizePoint}`,
+            `div => Normal:${fontSizePoint}`
           ],
           styles: {
             paragraphStyles: {
-              'Heading1': {
-                run: { size: 28, bold: true }, // 14pt
-                paragraph: { spacing: { after: 160 } }
-              },
-              'Heading2': {
-                run: { size: 28, bold: true }, // 14pt
-                paragraph: { spacing: { before: 240, after: 120 } }
-              },
-              'Heading3': {
-                run: { size: 28, bold: true }, // 14pt
-                paragraph: { spacing: { after: 80 } }
-              },
               'Normal': {
-                run: { size: 28 }, // 14pt
+                run: { size: fontSizePoint },
                 paragraph: { spacing: { after: 60 } }
               },
               'ListBullet': {
-                run: { size: 28 }, // 14pt
+                run: { size: fontSizePoint },
                 paragraph: { 
                   spacing: { after: 60 },
                   indent: { left: 720 } // 0.5 inch
                 }
               },
               'TableCell': {
-                run: { size: 28 }, // 14pt
+                run: { size: fontSizePoint },
                 paragraph: { spacing: { after: 60 } }
               }
             }
@@ -194,16 +187,18 @@ async function shareEmailHandler(request) {
               cantSplit: true
             }
           },
-          font: 'Arial',
-          css: true, // Process CSS
-          formattingPreservingSpace: true
+          font: options.fontFamily || 'Arial',
+          css: false, // Set to false to prevent CSS processing that might cause issues
+          preserveCSS: false, // Don't show CSS in document
+          formattingPreservingSpace: true,
+          lineEnding: '\r'
         };
         
         // Define timeout for conversion
         const CONVERSION_TIMEOUT = 30000; // 30 seconds
         
         // Create promises for conversion and timeout
-        const conversionPromise = HTMLtoDOCX(fullHtmlDocument, null, options);
+        const conversionPromise = HTMLtoDOCX(fullHtmlDocument, null, docxOptions);
         const timeoutPromise = new Promise((_, reject) => {
           setTimeout(() => {
             reject(new Error('DOCX conversion timed out after 30 seconds'));
@@ -213,7 +208,7 @@ async function shareEmailHandler(request) {
         // Race the conversion against the timeout
         try {
           attachmentContent = await Promise.race([conversionPromise, timeoutPromise]);
-          attachmentFilename = `${resume.title || 'Resume'}.docx`;
+          attachmentFilename = `${resume.title || 'Resume'}_${template}.docx`;
           attachmentContentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         } catch (raceError) {
           console.error('Email Share: Conversion race error:', raceError);
@@ -273,6 +268,61 @@ async function shareEmailHandler(request) {
       { status: 500 }
     );
   }
+}
+
+// Helper function to normalize font sizes in HTML content
+function normalizeFontSizes(html, fontSize = 14) {
+  // First, process HTML to make sure all elements have style attributes with font-size
+  let processedHtml = html; 
+  
+  // 1. Replace existing inline font-size values with the consistent fontSize
+  processedHtml = processedHtml.replace(/style="([^"]*)font-size:\s*\d+(\.\d+)?(px|pt|em|rem|%)([^"]*)"/gi, 
+    `style="$1font-size: ${fontSize}px$4"`);
+  
+  // 2. Add font-size to elements with style attributes but no font-size
+  const elementsToStyle = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'span', 'li', 'td', 'th', 'a', 'strong', 'em', 'b', 'i'];
+  
+  // Process each element type
+  elementsToStyle.forEach(tag => {
+    // Pattern to match elements with style but no font-size
+    const styleNoFontSizePattern = new RegExp(`<${tag}([^>]*?)style="([^"]*?)"([^>]*?)>`, 'gi');
+    processedHtml = processedHtml.replace(styleNoFontSizePattern, (match, beforeStyle, styleContent, afterStyle) => {
+      if (!styleContent.includes('font-size:')) {
+        return `<${tag}${beforeStyle}style="${styleContent}; font-size: ${fontSize}px"${afterStyle}>`;
+      }
+      return match;
+    });
+    
+    // Pattern to match elements with no style attribute
+    const noStylePattern = new RegExp(`<${tag}([^>]*?)>`, 'gi');
+    processedHtml = processedHtml.replace(noStylePattern, (match, attributes) => {
+      if (!match.includes('style=')) {
+        return `<${tag}${attributes} style="font-size: ${fontSize}px">`;
+      }
+      return match;
+    });
+  });
+  
+  // Special handling for headers to maintain hierarchy
+  processedHtml = processedHtml.replace(/<h1([^>]*?)style="([^"]*?)"/gi, 
+    (match, beforeStyle, styleContent) => {
+      const newStyle = styleContent.replace(/font-size:[^;"]*/gi, `font-size: ${Math.min(fontSize * 1.3, 18)}px`);
+      if (!newStyle.includes('font-size:')) {
+        return `<h1${beforeStyle}style="${newStyle}; font-size: ${Math.min(fontSize * 1.3, 18)}px"`;
+      }
+      return `<h1${beforeStyle}style="${newStyle}"`;
+    });
+  
+  processedHtml = processedHtml.replace(/<h2([^>]*?)style="([^"]*?)"/gi, 
+    (match, beforeStyle, styleContent) => {
+      const newStyle = styleContent.replace(/font-size:[^;"]*/gi, `font-size: ${Math.min(fontSize * 1.15, 16)}px`);
+      if (!newStyle.includes('font-size:')) {
+        return `<h2${beforeStyle}style="${newStyle}; font-size: ${Math.min(fontSize * 1.15, 16)}px"`;
+      }
+      return `<h2${beforeStyle}style="${newStyle}"`;
+    });
+  
+  return processedHtml;
 }
 
 export const POST = corsMiddleware(shareEmailHandler);

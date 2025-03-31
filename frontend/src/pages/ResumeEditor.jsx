@@ -542,6 +542,15 @@ function ResumeEditor() {
       setTimeout(() => setError(''), 3000);
       return;
     }
+    
+    // Get latest content before opening the share modal
+    let latestContent = content;
+    if (editorRef.current) {
+      latestContent = editorRef.current.getContent();
+      setContent(latestContent);
+    }
+    
+    // Open the share modal with current template and content
     setShowShareEmailModal(true);
   };
 
@@ -554,8 +563,8 @@ function ResumeEditor() {
     try {
       console.log('Downloading Word document for resume ID:', id, 'with template:', template);
       
-      // Show loading indicator or message
-      setError('Generating document, please wait...');
+      // Show loading indicator
+      setMessage('Generating document...');
       
       // Make sure we have the latest content from the editor
       let latestContent = content;
@@ -564,15 +573,59 @@ function ResumeEditor() {
         setContent(latestContent);
       }
       
-      // Send the current content along with the request to ensure it matches what's in the editor
+      // Clean up content to ensure it works well with document conversion
+      // 1. Remove any <style> tags that might be causing issues
+      let cleanedContent = latestContent.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
+      
+      // 2. Remove any CSS comments
+      cleanedContent = cleanedContent.replace(/\/\*[\s\S]*?\*\//g, '');
+      
+      // 3. Ensure consistent font sizing by applying directly to elements instead of through CSS
+      cleanedContent = cleanedContent.replace(/<([a-z][a-z0-9]*)[^>]*>/gi, (match, tag) => {
+        // Apply font size to all text elements
+        const textElements = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span', 'div', 'li', 'td', 'th', 'a', 'strong', 'em', 'b', 'i', 'u', 'label', 'small'];
+        
+        if (textElements.includes(tag.toLowerCase())) {
+          // If tag doesn't have a style attribute, add one with font-size
+          if (!match.includes('style=')) {
+            return match.replace(/>$/, ' style="font-size: 14px;">');
+          }
+          // If tag has a style attribute but no font-size, add font-size
+          else if (!match.includes('font-size:')) {
+            return match.replace(/style="([^"]*)"/i, 'style="$1; font-size: 14px;"');
+          }
+          // If tag has a style attribute with font-size, normalize it
+          else {
+            return match.replace(/font-size:\s*\d+(\.\d+)?(px|pt|em|rem|%)/gi, 'font-size: 14px');
+          }
+        }
+        
+        // Special handling for headers to maintain hierarchy but with consistent sizes
+        if (tag.toLowerCase() === 'h1') {
+          return match.replace(/font-size:[^;"}]*/gi, 'font-size: 18px').replace(/>$/, ' style="font-size: 18px;">');
+        } else if (tag.toLowerCase() === 'h2') {
+          return match.replace(/font-size:[^;"}]*/gi, 'font-size: 16px').replace(/>$/, ' style="font-size: 16px;">');
+        }
+        
+        return match;
+      });
+      
+      // Send the cleaned content along with the request
       const response = await axios({
         method: 'post',
         url: `/api/resume/${id}/export`,
         data: {
-          content: latestContent,
+          content: cleanedContent,
           template: template,
           format: 'docx',
-          title: title
+          title: title,
+          options: {
+            fontSize: 14, // Explicitly set default font size
+            preserveTemplate: true, // Ensure template formatting is maintained
+            fontFamily: 'Arial', // Consistent font family
+            lineHeight: 1.5, // Proper line spacing for readability
+            convertTablesToStyles: true // For modern template with tables
+          }
         },
         responseType: 'blob',
         headers: {
@@ -582,7 +635,7 @@ function ResumeEditor() {
       });
       
       // Clear the loading message
-      setError('');
+      setMessage('');
       
       if (!response.data || response.data.size === 0) {
         throw new Error('No document data received');
@@ -608,12 +661,12 @@ function ResumeEditor() {
       window.URL.revokeObjectURL(url);
       
       // Show success message
-      setMessage('Resume downloaded successfully with ' + template.charAt(0).toUpperCase() + template.slice(1) + ' template!');
+      setMessage(`Resume downloaded successfully with ${template.charAt(0).toUpperCase() + template.slice(1)} template!`);
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       console.error('Error downloading Word document:', err);
       
-      let errorMessage = 'Failed to download Word document. Please try again.';
+      let errorMessage = 'Failed to download document. Please try again.';
       if (err.response && err.response.data && err.response.data.message) {
         errorMessage = err.response.data.message;
       } else if (err.message) {
@@ -1499,10 +1552,12 @@ function ResumeEditor() {
                       content_style: `
                         body {
                           font-family: Arial, sans-serif;
-                          margin: 0 auto;
+                          margin: 2px;
                           max-width: 800px;
                           padding: 20px 30px;
                           min-height: 500px;
+                          max-height: calc(100vh - 180px);
+                          overflow-y: auto;
                           background-color: white;
                           box-shadow: 0 0 15px rgba(0,0,0,0.05);
                           border-radius: 8px;
@@ -1533,12 +1588,16 @@ function ResumeEditor() {
                           container.style.borderRadius = '8px';
                           container.style.boxShadow = '0 4px 20px rgba(0,0,0,0.08)';
                           container.style.marginBottom = '20px';
+                          container.style.height = 'calc(100vh - 120px)';
+                          container.style.maxHeight = 'calc(100vh - 120px)';
+                          container.style.overflow = 'hidden';
                           
                           // Better styling for the iframe
                           const editorIframe = editor.getContentAreaContainer().querySelector('iframe');
                           if (editorIframe) {
                             editorIframe.style.backgroundColor = '#ffffff';
                             editorIframe.style.minHeight = '500px';
+                            editorIframe.style.maxHeight = 'calc(100vh - 230px)';
                           }
                           
                           // Apply template class to the body
@@ -1548,20 +1607,23 @@ function ResumeEditor() {
                           }
                         });
                         
-                        // Auto-resize handling
+                        // Auto-resize handling with max height limit
                         editor.on('NodeChange SetContent KeyUp', function() {
                           const doc = editor.getDoc();
                           const body = doc.body;
-                          const height = body.scrollHeight;
+                          
+                          // Set scroll on the body instead of adjusting iframe height
+                          body.style.maxHeight = 'calc(100vh - 230px)';
+                          body.style.overflowY = 'auto';
                           
                           // Minimum height
                           const minHeight = 500;
-                          const newHeight = Math.max(height, minHeight);
+                          const maxHeight = window.innerHeight - 230;
                           
-                          // Set editor height
+                          // Apply height constraints to iframe if needed
                           const iframe = editor.getContentAreaContainer().querySelector('iframe');
                           if (iframe) {
-                            iframe.style.height = `${newHeight}px`;
+                            iframe.style.height = `${Math.min(Math.max(body.scrollHeight, minHeight), maxHeight)}px`;
                           }
                         });
                         
@@ -1644,7 +1706,10 @@ function ResumeEditor() {
                 borderColor: 'divider',
                 boxShadow: 'inset 4px 0 10px rgba(0,0,0,0.03)',
                 display: 'flex',
-                flexDirection: 'column'
+                flexDirection: 'column',
+                height: 'calc(100vh - 180px)',
+                maxHeight: 'calc(100vh - 180px)',
+                overflow: 'hidden'
               }}
             >
               <Box
@@ -1679,7 +1744,9 @@ function ResumeEditor() {
                 p: 3,
                 display: 'flex',
                 flexDirection: 'column',
-                gap: 2
+                gap: 2,
+                overflowY: 'auto',
+                height: '100%'
               }}>
                 {/* Input fields with reduced margins */}
                 <TextField

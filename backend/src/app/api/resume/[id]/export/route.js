@@ -19,7 +19,8 @@ async function exportResumeDocument(request, context) {
     }
     
     // Get the request body
-    const { content, template, format, title } = await request.json();
+    const requestData = await request.json();
+    const { content, template, format, title, options = {} } = requestData;
     
     // Properly await and destructure the params
     const params = await context.params;
@@ -60,10 +61,17 @@ async function exportResumeDocument(request, context) {
     }
     
     console.log('Document Export: Resume found, content length:', content.length);
-    const htmlContent = content;
+    let htmlContent = content;
+    
+    // Normalize font sizes in the content to ensure consistency
+    if (options.fontSize) {
+      console.log(`Document Export: Normalizing font sizes to ${options.fontSize}pt`);
+      // Replace inline styles with consistent font sizes
+      htmlContent = normalizeFontSizes(htmlContent, options.fontSize);
+    }
     
     // Get template-specific styling
-    const templateStyles = getTemplateStyles(template);
+    const templateStyles = getTemplateStyles(template, options);
     
     // Create a complete HTML document with template-specific styling
     const fullHtmlDocument = `
@@ -72,9 +80,6 @@ async function exportResumeDocument(request, context) {
       <head>
         <meta charset="UTF-8">
         <title>${title || resume.title || 'Resume'}</title>
-        <style>
-          ${templateStyles.css}
-        </style>
       </head>
       <body class="template-${template}">
         <div class="resume-content">
@@ -89,8 +94,8 @@ async function exportResumeDocument(request, context) {
       try {
         console.log('Document Export: Converting to DOCX with template:', template);
         
-        // Configure document options based on template
-        const options = {
+        // Configure document options based on template and user options
+        const docxOptions = {
           margin: templateStyles.margin,
           title: title || resume.title || 'Resume',
           pageSize: {
@@ -104,16 +109,18 @@ async function exportResumeDocument(request, context) {
               cantSplit: true
             }
           },
-          font: templateStyles.font,
-          css: true, // Process CSS
-          formattingPreservingSpace: true
+          font: options.fontFamily || templateStyles.font,
+          css: false, // Set to false to prevent CSS processing that might cause issues
+          preserveCSS: false, // Don't show CSS in document
+          formattingPreservingSpace: true,
+          lineEnding: '\r'
         };
         
         // Define timeout for conversion
         const CONVERSION_TIMEOUT = 30000; // 30 seconds
         
         // Create promises for conversion and timeout
-        const conversionPromise = HTMLtoDOCX(fullHtmlDocument, null, options);
+        const conversionPromise = HTMLtoDOCX(fullHtmlDocument, null, docxOptions);
         const timeoutPromise = new Promise((_, reject) => {
           setTimeout(() => {
             reject(new Error('DOCX conversion timed out after 30 seconds'));
@@ -188,46 +195,96 @@ async function exportResumeDocument(request, context) {
   }
 }
 
+// Helper function to normalize font sizes in HTML content
+function normalizeFontSizes(html, fontSize = 14) {
+  // First, process HTML to make sure all elements have style attributes with font-size
+  let processedHtml = html;
+  
+  // 1. Replace existing inline font-size values with the consistent fontSize
+  processedHtml = processedHtml.replace(/style="([^"]*)font-size:\s*\d+(\.\d+)?(px|pt|em|rem|%)([^"]*)"/gi, 
+    `style="$1font-size: ${fontSize}px$4"`);
+  
+  // 2. Add font-size to elements with style attributes but no font-size
+  const elementsToStyle = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'span', 'li', 'td', 'th', 'a', 'strong', 'em', 'b', 'i'];
+  
+  // Process each element type
+  elementsToStyle.forEach(tag => {
+    // Pattern to match elements with style but no font-size
+    const styleNoFontSizePattern = new RegExp(`<${tag}([^>]*?)style="([^"]*?)"([^>]*?)>`, 'gi');
+    processedHtml = processedHtml.replace(styleNoFontSizePattern, (match, beforeStyle, styleContent, afterStyle) => {
+      if (!styleContent.includes('font-size:')) {
+        return `<${tag}${beforeStyle}style="${styleContent}; font-size: ${fontSize}px"${afterStyle}>`;
+      }
+      return match;
+    });
+    
+    // Pattern to match elements with no style attribute
+    const noStylePattern = new RegExp(`<${tag}([^>]*?)>`, 'gi');
+    processedHtml = processedHtml.replace(noStylePattern, (match, attributes) => {
+      if (!match.includes('style=')) {
+        return `<${tag}${attributes} style="font-size: ${fontSize}px">`;
+      }
+      return match;
+    });
+  });
+  
+  // Special handling for headers to maintain hierarchy
+  processedHtml = processedHtml.replace(/<h1([^>]*?)style="([^"]*?)"/gi, 
+    (match, beforeStyle, styleContent) => {
+      const newStyle = styleContent.replace(/font-size:[^;"]*/gi, `font-size: ${Math.min(fontSize * 1.3, 18)}px`);
+      if (!newStyle.includes('font-size:')) {
+        return `<h1${beforeStyle}style="${newStyle}; font-size: ${Math.min(fontSize * 1.3, 18)}px"`;
+      }
+      return `<h1${beforeStyle}style="${newStyle}"`;
+    });
+  
+  processedHtml = processedHtml.replace(/<h2([^>]*?)style="([^"]*?)"/gi, 
+    (match, beforeStyle, styleContent) => {
+      const newStyle = styleContent.replace(/font-size:[^;"]*/gi, `font-size: ${Math.min(fontSize * 1.15, 16)}px`);
+      if (!newStyle.includes('font-size:')) {
+        return `<h2${beforeStyle}style="${newStyle}; font-size: ${Math.min(fontSize * 1.15, 16)}px"`;
+      }
+      return `<h2${beforeStyle}style="${newStyle}"`;
+    });
+  
+  return processedHtml;
+}
+
 // Helper function to get template-specific styles
-function getTemplateStyles(template) {
+function getTemplateStyles(template, options = {}) {
+  const fontSize = options.fontSize || 14;
+  const fontSizePoint = fontSize * 2; // Convert to Word's point system (1pt = 2 in Word's internal units)
+  
   // Default styles (professional template)
   const baseStyleMap = [
-    'h1 => Heading1',
-    'h2 => Heading2',
-    'h3 => Heading3',
-    'p => Normal',
-    'ul => ListBullet',
-    '.resume-content => Normal',
-    '* => Normal'
+    `h1 => Normal:${fontSizePoint}`,
+    `h2 => Normal:${fontSizePoint}`,
+    `h3 => Normal:${fontSizePoint}`,
+    `p => Normal:${fontSizePoint}`,
+    `ul => ListBullet:${fontSizePoint}`,
+    `li => ListBullet:${fontSizePoint}`,
+    `td => TableCell:${fontSizePoint}`,
+    `span => Normal:${fontSizePoint}`,
+    `div => Normal:${fontSizePoint}`,
+    `.resume-content => Normal:${fontSizePoint}`,
+    `* => Normal:${fontSizePoint}`
   ];
   
   const baseStyles = {
     paragraphStyles: {
-      'Heading1': {
-        run: { size: 28, bold: true, color: '#1e3a8a' }, // 14pt
-        paragraph: { spacing: { after: 160 } }
-      },
-      'Heading2': {
-        run: { size: 28, bold: true, color: '#1e3a8a' }, // 14pt
-        paragraph: { spacing: { before: 240, after: 120 } }
-      },
-      'Heading3': {
-        run: { size: 28, bold: true, color: '#1e3a8a' }, // 14pt
-        paragraph: { spacing: { after: 80 } }
-      },
       'Normal': {
-        run: { size: 28 }, // 14pt
+        run: { size: fontSizePoint },
         paragraph: { spacing: { after: 60 } }
       },
       'ListBullet': {
-        run: { size: 28 }, // 14pt
+        run: { size: fontSizePoint },
         paragraph: { 
           spacing: { after: 60 },
           indent: { left: 720 } // 0.5 inch
         }
       },
       'TableCell': {
-        run: { size: 28 }, // 14pt
+        run: { size: fontSizePoint },
         paragraph: { spacing: { after: 60 } }
       }
     }
@@ -252,18 +309,6 @@ function getTemplateStyles(template) {
         styles: {
           paragraphStyles: {
             ...baseStyles.paragraphStyles,
-            'Heading1': {
-              run: { size: 28, bold: true, color: '#9c27b0' }, // 14pt
-              paragraph: { spacing: { after: 200 } }
-            },
-            'Heading2': {
-              run: { size: 28, bold: true, color: '#9c27b0' }, // 14pt
-              paragraph: { spacing: { before: 240, after: 120 }, border: { bottom: { size: 4, space: 1, value: 'single', color: '#f3e5f5' } } }
-            },
-            'CreativeHeader': {
-              run: { size: 28, bold: false, color: '#666666' }, // 14pt
-              paragraph: { spacing: { after: 160 }, alignment: 'center' }
-            }
           }
         },
         css: `
@@ -309,18 +354,6 @@ function getTemplateStyles(template) {
         styles: {
           paragraphStyles: {
             ...baseStyles.paragraphStyles,
-            'Heading1': {
-              run: { size: 28, bold: true, color: '#1976d2' }, // 14pt
-              paragraph: { spacing: { after: 160 } }
-            },
-            'Heading2': {
-              run: { size: 28, bold: true, color: '#1976d2' }, // 14pt
-              paragraph: { spacing: { before: 240, after: 120 }, border: { bottom: { size: 4, space: 1, value: 'single', color: '#1976d2' } } }
-            },
-            'TableCell': {
-              run: { size: 28 }, // 14pt
-              paragraph: { spacing: { after: 60 } }
-            }
           }
         },
         css: `
