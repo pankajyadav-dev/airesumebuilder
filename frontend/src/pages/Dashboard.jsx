@@ -3,6 +3,48 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import ShareEmailModal from '../components/ShareResume';
+import { 
+  Button, 
+  Box, 
+  Typography, 
+  Container, 
+  Grid, 
+  Card, 
+  CardContent, 
+  CardActions, 
+  IconButton, 
+  Chip, 
+  CircularProgress, 
+  Alert, 
+  Stack, 
+  Paper
+} from '@mui/material';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import ShareIcon from '@mui/icons-material/Share';
+import DownloadIcon from '@mui/icons-material/Download';
+import DeleteIcon from '@mui/icons-material/Delete';
+import ArticleIcon from '@mui/icons-material/Article';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import SpellcheckIcon from '@mui/icons-material/Spellcheck';
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#1976d2',
+    },
+    secondary: {
+      main: '#9c27b0',
+    },
+    success: {
+      main: '#2e7d32',
+    },
+    error: {
+      main: '#d32f2f',
+    },
+  },
+});
 
 function Dashboard() {
   const [resumes, setResumes] = useState([]);
@@ -97,153 +139,226 @@ function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex justify-between items-center mb-10">
-          <h1 className="text-4xl font-extrabold text-gray-900 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
-            My Resumes
-          </h1>
-          <Link
-            to="/resume/new"
-            className="inline-flex items-center px-5 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white font-medium rounded-xl shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Create New Resume
-          </Link>
-        </div>
+    <ThemeProvider theme={theme}>
+      <Box sx={{ 
+        minHeight: '100vh', 
+        background: 'linear-gradient(to bottom right, #f0f4f8, #e3f2fd)',
+        py: 4 
+      }}>
+        <Container maxWidth="lg">
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={5}>
+            <Typography variant="h4" component="h1" fontWeight="bold" 
+              sx={{ 
+                background: 'linear-gradient(45deg, #1976d2, #9c27b0)',
+                backgroundClip: 'text',
+                textFillColor: 'transparent',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+              }}
+            >
+              My Resumes
+            </Typography>
+            <Button 
+              component={Link} 
+              to="/resume/new" 
+              variant="contained" 
+              startIcon={<AddIcon />}
+              sx={{ 
+                borderRadius: 2,
+                px: 3,
+                py: 1,
+                background: 'linear-gradient(45deg, #1976d2, #1565c0)',
+                textTransform: 'none',
+                boxShadow: 3,
+                '&:hover': {
+                  boxShadow: 6,
+                  transform: 'scale(1.03)',
+                  transition: 'all 0.2s'
+                },
+              }}
+            >
+              Create New Resume
+            </Button>
+          </Box>
 
-        {error && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow-md mb-8 animate-fadeIn" role="alert">
-            <div className="flex items-center">
-              <svg className="h-6 w-6 text-red-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span className="font-medium">{error}</span>
-            </div>
-          </div>
-        )}
+          {error && (
+            <Alert severity="error" variant="filled" sx={{ mb: 4, boxShadow: 2 }}>
+              {error}
+            </Alert>
+          )}
 
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="loader">
-              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
-            </div>
-          </div>
-        ) : resumes.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-xl p-12 text-center border border-gray-100">
-            <div className="flex flex-col items-center">
-              <svg className="w-20 h-20 text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              <p className="text-gray-500 text-xl mb-8">You haven't created any resumes yet.</p>
-              <Link
-                to="/resume/new"
-                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
+          {loading ? (
+            <Box display="flex" justifyContent="center" alignItems="center" height="300px">
+              <CircularProgress />
+            </Box>
+          ) : resumes.length === 0 ? (
+            <Paper 
+              elevation={3} 
+              sx={{ 
+                py: 6, 
+                px: 4, 
+                display: 'flex', 
+                flexDirection: 'column', 
+                alignItems: 'center',
+                borderRadius: 3
+              }}
+            >
+              <ArticleIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" mb={4}>
+                You haven't created any resumes yet.
+              </Typography>
+              <Button 
+                component={Link} 
+                to="/resume/new" 
+                variant="contained" 
+                startIcon={<AddIcon />}
+                sx={{ 
+                  borderRadius: 8,
+                  px: 4,
+                  py: 1.5,
+                  background: 'linear-gradient(45deg, #1976d2, #5c6bc0)',
+                  textTransform: 'none',
+                  fontWeight: 'medium',
+                  boxShadow: 4,
+                  '&:hover': {
+                    boxShadow: 6,
+                    transform: 'scale(1.05)',
+                    transition: 'all 0.2s'
+                  },
+                }}
               >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
                 Create Your First Resume
-              </Link>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {resumes.map((resume) => (
-              <div 
-                key={resume._id} 
-                className="bg-white rounded-xl shadow-md hover:shadow-xl border border-gray-100 p-6 transition-all duration-200 transform hover:scale-[1.02]"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <Link 
-                    to={`/resume/${resume._id}`} 
-                    className="text-xl font-bold text-blue-600 hover:text-blue-800 transition-colors truncate max-w-[80%]"
+              </Button>
+            </Paper>
+          ) : (
+            <Grid container spacing={3}>
+              {resumes.map((resume) => (
+                <Grid item xs={12} md={6} lg={4} key={resume._id}>
+                  <Card 
+                    elevation={2} 
+                    sx={{ 
+                      borderRadius: 3, 
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        transform: 'translateY(-4px)',
+                        boxShadow: 6
+                      }
+                    }}
                   >
-                    {resume.title}
-                  </Link>
-                  <div className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-md">
-                    {formatDate(resume.updatedAt)}
-                  </div>
-                </div>
-                
-                {resume.metrics && (
-                  <div className="flex space-x-2 mb-4">
-                    {resume.metrics.atsScore > 0 && (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        ATS: {resume.metrics.atsScore}%
-                      </span>
-                    )}
-                    {resume.metrics.grammarScore > 0 && (
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        Grammar: {resume.metrics.grammarScore}%
-                      </span>
-                    )}
-                  </div>
-                )}
-                
-                <div className="flex space-x-2 mt-4">
-                  <Link
-                    to={`/resume/${resume._id}`}
-                    className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-sm"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                    Edit
-                  </Link>
-                  <div className="relative group">
-                    <button
-                      onClick={() => handleShareResume(resume)}
-                      className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 transition-colors shadow-sm"
-                    >
-                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                      </svg>
-                      Share
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => handleDownloadDocument(resume._id, resume.title)}
-                    className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-purple-600 hover:bg-purple-700 transition-colors shadow-sm"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Word
-                  </button>
-                  <button
-                    onClick={() => handleDeleteResume(resume._id)}
-                    className="inline-flex items-center justify-center p-2 border border-transparent text-sm font-medium rounded-lg text-red-700 bg-red-100 hover:bg-red-200 transition-colors shadow-sm"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+                    <CardContent>
+                      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
+                        <Typography 
+                          component={Link} 
+                          to={`/resume/${resume._id}`} 
+                          variant="h6" 
+                          color="primary"
+                          sx={{ 
+                            textDecoration: 'none',
+                            fontWeight: 'bold',
+                            transition: 'color 0.2s',
+                            '&:hover': { color: 'primary.dark' },
+                            maxWidth: '80%',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {resume.title}
+                        </Typography>
+                        <Chip 
+                          label={formatDate(resume.updatedAt)} 
+                          size="small" 
+                          sx={{ 
+                            bgcolor: 'rgba(0, 0, 0, 0.04)', 
+                            fontWeight: 'medium',
+                            fontSize: '0.7rem'
+                          }} 
+                        />
+                      </Box>
+                      
+                      {resume.metrics && (
+                        <Stack direction="row" spacing={1} mb={2}>
+                          {resume.metrics.atsScore > 0 && (
+                            <Chip
+                              icon={<CheckCircleIcon />}
+                              label={`ATS: ${resume.metrics.atsScore}%`}
+                              size="small"
+                              color="success"
+                              variant="outlined"
+                            />
+                          )}
+                          {resume.metrics.grammarScore > 0 && (
+                            <Chip
+                              icon={<SpellcheckIcon />}
+                              label={`Grammar: ${resume.metrics.grammarScore}%`}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                            />
+                          )}
+                        </Stack>
+                      )}
+                    </CardContent>
+                    
+                    <CardActions sx={{ px: 2, pb: 2 }}>
+                      <Button 
+                        component={Link}
+                        to={`/resume/${resume._id}`}
+                        variant="contained" 
+                        color="primary"
+                        size="small"
+                        startIcon={<EditIcon />}
+                        sx={{ flex: 1 }}
+                      >
+                        Edit
+                      </Button>
+                      <Button 
+                        variant="contained" 
+                        color="success"
+                        size="small"
+                        onClick={() => handleShareResume(resume)}
+                        startIcon={<ShareIcon />}
+                        sx={{ flex: 1, mx: 1 }}
+                      >
+                        Share
+                      </Button>
+                      <Button 
+                        variant="contained" 
+                        color="secondary"
+                        size="small"
+                        onClick={() => handleDownloadDocument(resume._id, resume.title)}
+                        startIcon={<DownloadIcon />}
+                        sx={{ flex: 1 }}
+                      >
+                        Word
+                      </Button>
+                      <IconButton 
+                        color="error" 
+                        onClick={() => handleDeleteResume(resume._id)}
+                        size="small"
+                        sx={{ ml: 1 }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </CardActions>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          )}
+        </Container>
 
-      {/* Share Email Modal */}
-      {selectedResumeForSharing && (
-        <ShareEmailModal 
-          isOpen={showShareEmailModal}
-          onClose={() => setShowShareEmailModal(false)}
-          resumeId={selectedResumeForSharing._id}
-          resumeTitle={selectedResumeForSharing.title}
-        />
-      )}
-    </div>
+        {/* Share Email Modal */}
+        {selectedResumeForSharing && (
+          <ShareEmailModal 
+            isOpen={showShareEmailModal}
+            onClose={() => setShowShareEmailModal(false)}
+            resumeId={selectedResumeForSharing._id}
+            resumeTitle={selectedResumeForSharing.title}
+          />
+        )}
+      </Box>
+    </ThemeProvider>
   );
 }
 

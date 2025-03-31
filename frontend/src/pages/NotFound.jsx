@@ -1,22 +1,75 @@
 import { Link } from 'react-router-dom';
+import { 
+  Box, 
+  Typography, 
+  Button, 
+  Container, 
+  Paper 
+} from '@mui/material';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+import HomeIcon from '@mui/icons-material/Home';
+
+const theme = createTheme({
+  palette: {
+    primary: {
+      main: '#1976d2',
+    },
+  },
+});
 
 function NotFound() {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="text-center">
-        <h1 className="text-9xl font-bold text-blue-600">404</h1>
-        <h2 className="mt-4 text-3xl font-extrabold text-gray-900 sm:text-4xl">Page not found</h2>
-        <p className="mt-3 text-xl text-gray-500">Sorry, we couldn't find the page you're looking for.</p>
-        <div className="mt-8">
-          <Link
-            to="/"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+    <ThemeProvider theme={theme}>
+      <Box 
+        sx={{ 
+          minHeight: '100vh', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          bgcolor: 'grey.50'
+        }}
+      >
+        <Container maxWidth="sm">
+          <Paper 
+            elevation={3} 
+            sx={{ 
+              py: 6, 
+              px: 4, 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center',
+              borderRadius: 3
+            }}
           >
-            Go back home
-          </Link>
-        </div>
-      </div>
-    </div>
+            <Typography variant="h1" color="primary" fontWeight="bold" fontSize="6rem">
+              404
+            </Typography>
+            <Typography variant="h4" color="text.primary" fontWeight="bold" mt={2}>
+              Page not found
+            </Typography>
+            <Typography variant="h6" color="text.secondary" mt={2} textAlign="center">
+              Sorry, we couldn't find the page you're looking for.
+            </Typography>
+            <Button 
+              component={Link} 
+              to="/" 
+              variant="contained" 
+              startIcon={<HomeIcon />}
+              sx={{ 
+                mt: 4, 
+                px: 3, 
+                py: 1.5,
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 'medium'
+              }}
+            >
+              Go back home
+            </Button>
+          </Paper>
+        </Container>
+      </Box>
+    </ThemeProvider>
   );
 }
 

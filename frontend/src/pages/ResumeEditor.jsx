@@ -2,11 +2,51 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 // import ResumeTemplates, { getTemplateHtml } from '../components/ResumeTemplates';
-import ShareEmailModal from '../components/ShareResume';
+import ShareEmailModal from '../components/ShareResume/ShareEmailModal';
 import GrammarAnalysisModal from '../components/GrammarAnalysisModal';
 import AtsAnalysisModal from '../components/AtsAnalysisModal';
 import axios from 'axios';
 import { Editor } from '@tinymce/tinymce-react';
+import {
+  Box,
+  Container,
+  Typography,
+  Paper,
+  Grid,
+  TextField,
+  Button,
+  CircularProgress,
+  Divider,
+  Alert,
+  IconButton,
+  Snackbar,
+  Menu,
+  MenuItem,
+  Tooltip,
+  AppBar,
+  Toolbar,
+  Switch,
+  FormControlLabel,
+  InputAdornment,
+  Card,
+  CardContent,
+  LinearProgress,
+  Chip
+} from '@mui/material';
+import SaveIcon from '@mui/icons-material/Save';
+import DownloadIcon from '@mui/icons-material/Download';
+import ShareIcon from '@mui/icons-material/Share';
+import CodeIcon from '@mui/icons-material/Code';
+import SmartToyIcon from '@mui/icons-material/SmartToy';
+import SpellcheckIcon from '@mui/icons-material/Spellcheck';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
+import DescriptionIcon from '@mui/icons-material/Description';
+import BusinessIcon from '@mui/icons-material/Business';
+import WorkIcon from '@mui/icons-material/Work';
+import CategoryIcon from '@mui/icons-material/Category';
 
 function ResumeEditor() {
   const { id } = useParams();
@@ -61,7 +101,46 @@ function ResumeEditor() {
         // Add more user data here
       } : {};
       
-      setContent(getTemplateHtml(template, userData));
+      // Create a simple template HTML since getTemplateHtml is not available
+      const getBasicTemplate = (template, userData) => {
+        const name = userData?.name || 'Your Name';
+        const email = userData?.email || 'your.email@example.com';
+        
+        return `<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 30px;">
+          <div style="text-align: center; margin-bottom: 20px;">
+            <h1 style="margin: 0; color: #333;">${name}</h1>
+            <p style="margin: 5px 0;">${email} | Phone: Your Phone | Location: Your Location</p>
+          </div>
+          <div style="margin-bottom: 20px;">
+            <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Summary</h2>
+            <p>Experienced professional with skills in...</p>
+          </div>
+          <div style="margin-bottom: 20px;">
+            <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Experience</h2>
+            <div style="margin-bottom: 15px;">
+              <h3 style="margin: 0; font-size: 16px;">Job Title</h3>
+              <p style="margin: 0; font-style: italic;">Company Name | Date - Present</p>
+              <ul>
+                <li>Accomplishment 1</li>
+                <li>Accomplishment 2</li>
+              </ul>
+            </div>
+          </div>
+          <div style="margin-bottom: 20px;">
+            <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Education</h2>
+            <div>
+              <h3 style="margin: 0; font-size: 16px;">Degree Name</h3>
+              <p style="margin: 0; font-style: italic;">University Name | Graduation Year</p>
+            </div>
+          </div>
+          <div>
+            <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Skills</h2>
+            <p>Skill 1, Skill 2, Skill 3, Skill 4, Skill 5</p>
+          </div>
+        </div>`;
+      };
+      
+      setContent(getBasicTemplate(template, userData));
     }
   }, [id, step, template, user]);
 
@@ -383,415 +462,740 @@ function ResumeEditor() {
     }
   };
 
-  if (loading && !content && step !== 1) {
+  if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen bg-gradient-to-br from-blue-50 to-purple-50">
-        <div className="flex flex-col items-center">
-          <div className="relative">
-            <div className="h-20 w-20 rounded-full border-t-4 border-blue-600 border-b-4 border-purple-600 animate-spin"></div>
-            <div className="h-20 w-20 rounded-full border-r-4 border-blue-400 border-l-4 border-purple-400 animate-spin absolute top-0 left-0" 
-              style={{ animationDuration: '1.5s', animationDirection: 'reverse' }}></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-          </div>
-          <div className="mt-8 text-center">
-            <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-2">
-              Loading Your Resume
-            </h3>
-            <p className="text-gray-600">Please wait while we prepare your document...</p>
-          </div>
-          <div className="mt-6 w-64 h-2 bg-gray-200 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 animate-pulse-slow rounded-full" 
-              style={{width: '75%'}}></div>
-          </div>
-        </div>
-      </div>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '100vh',
+          bgcolor: 'background.default',
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+      >
+        <Box 
+          sx={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px'
+          }}
+        >
+          <LinearProgress />
+        </Box>
+        <Box sx={{ position: 'relative', mt: -5 }}>
+          <CircularProgress 
+            size={80} 
+            thickness={3} 
+            sx={{ 
+              animation: 'pulse 1.5s infinite ease-in-out',
+              '@keyframes pulse': {
+                '0%': { opacity: 0.8, transform: 'scale(0.95)' },
+                '50%': { opacity: 1, transform: 'scale(1.05)' },
+                '100%': { opacity: 0.8, transform: 'scale(0.95)' },
+              }
+            }} 
+          />
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              bottom: 0,
+              right: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <DescriptionIcon 
+              sx={{ 
+                fontSize: 40,
+                animation: 'fadeIn 1.5s infinite alternate',
+                '@keyframes fadeIn': {
+                  '0%': { opacity: 0.6 },
+                  '100%': { opacity: 1 },
+                }
+              }} 
+            />
+          </Box>
+        </Box>
+        <Typography variant="h5" sx={{ mt: 4, fontWeight: 500, letterSpacing: 0.5 }}>
+          Loading Resume...
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+          Just a moment while we prepare your document
+        </Typography>
+      </Box>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
-      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {step === 1 ? (
-          <div className="max-w-5xl mx-auto">
-            <div className="flex flex-col items-center mb-16">
-              <h1 className="text-5xl md:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 text-center mb-6">Create Your Resume</h1>
-              <p className="text-xl text-gray-600 text-center max-w-2xl">Choose a professional template to showcase your skills and experience</p>
-            </div>
-            
-            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 mb-12">
-              <ResumeTemplates 
-                selectedTemplate={template} 
-                onSelectTemplate={handleTemplateSelect} 
-              />
-            </div>
-            
-            <div className="flex justify-center">
-              <button
-                onClick={proceedToEditor}
-                disabled={!template}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-10 py-4 rounded-xl text-lg font-medium
-                         disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-300 hover:scale-105
-                         shadow-lg hover:shadow-xl"
-              >
-                Continue with {template.charAt(0).toUpperCase() + template.slice(1)} Template
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="space-y-8">
-            <div className="bg-white rounded-xl shadow-xl p-6 border border-gray-100 transition-all duration-300 hover:shadow-2xl">
-              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center space-y-4 lg:space-y-0 lg:space-x-8">
-                <div className="flex-1 w-full">
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 border-b-2 border-transparent 
-                             focus:border-blue-500 focus:outline-none w-full bg-transparent"
-                    placeholder="Give your resume a title..."
-                  />
-                </div>
-                <div className="flex flex-wrap gap-3 w-full lg:w-auto">
-                  <button
-                    onClick={handleShareViaEmail}
-                    className="flex-1 lg:flex-none bg-gradient-to-r from-green-600 to-green-500 text-white px-6 py-3 rounded-lg text-sm font-medium
-                             hover:from-green-700 hover:to-green-600 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 flex items-center justify-center space-x-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
-                    <span>Share</span>
-                  </button>
-                  <button
-                    onClick={handleDownloadDocument}
-                    className="flex-1 lg:flex-none bg-gradient-to-r from-purple-600 to-purple-500 text-white px-6 py-3 rounded-lg text-sm font-medium
-                             hover:from-purple-700 hover:to-purple-600 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105 flex items-center justify-center space-x-2"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span>Word</span>
-                  </button>
-                  <button
-                    onClick={saveResume}
-                    disabled={saving}
-                    className="flex-1 lg:flex-none bg-gradient-to-r from-blue-600 to-blue-500 text-white px-6 py-3 rounded-lg text-sm font-medium
-                             hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105
-                             flex items-center justify-center space-x-2"
-                  >
-                    {saving ? (
-                      <>
-                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"/>
-                        <span>Saving...</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                        </svg>
-                        <span>Save Resume</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            </div>
-            
-            {error && (
-              <div className="animate-fade-in bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-[1.01]" role="alert">
-                <div className="flex items-center">
-                  <svg className="h-6 w-6 text-red-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="block sm:inline font-medium">{error}</span>
-                </div>
-              </div>
-            )}
-            
-            {message && (
-              <div className="animate-fade-in bg-green-100 border-l-4 border-green-500 text-green-700 p-4 rounded-lg shadow-md transition-all duration-300 transform hover:scale-[1.01]" role="alert">
-                <div className="flex items-center">
-                  <svg className="h-6 w-6 text-green-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span className="block sm:inline font-medium">{message}</span>
-                </div>
-              </div>
-            )}
-            
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="col-span-2 lg:col-span-1">
-                  <div className="bg-white rounded-xl shadow-xl border border-gray-100 p-6 space-y-8 transition-all duration-300 hover:shadow-2xl">
-                    <div>
-                      <h2 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600 mb-6">AI Resume Tools</h2>
-                      
-                      <div className="space-y-6">
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                            <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Resume Information
-                          </h3>
-                          <div className="space-y-4">
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Job Title</label>
-                              <input
-                                type="text"
-                                value={jobTitle}
-                                onChange={(e) => setJobTitle(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none 
-                                         focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
-                                placeholder="e.g. Software Engineer"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Target Company</label>
-                              <input
-                                type="text"
-                                value={targetCompany}
-                                onChange={(e) => setTargetCompany(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none 
-                                         focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
-                                placeholder="e.g. Google"
-                              />
-                            </div>
-                            <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">Industry</label>
-                              <input
-                                type="text"
-                                value={targetIndustry}
-                                onChange={(e) => setTargetIndustry(e.target.value)}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none 
-                                         focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-shadow"
-                                placeholder="e.g. Technology"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                            <svg className="w-5 h-5 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                            </svg>
-                            AI Tools
-                          </h3>
-                          <div className="space-y-3">
-                            <button
-                              onClick={generateAIResume}
-                              disabled={isGeneratingAI || !jobTitle}
-                              className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-4 py-3 rounded-lg text-sm font-medium
-                                       hover:from-purple-700 hover:to-indigo-700 disabled:opacity-50 transition-all duration-300 transform hover:scale-105
-                                       shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
-                            >
-                              {isGeneratingAI ? (
-                                <>
-                                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"/>
-                                  <span>Generating...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                  </svg>
-                                  <span>Generate AI Resume</span>
-                                </>
-                              )}
-                            </button>
-                            <button
-                              onClick={analyzeATS}
-                              disabled={isAnalyzingATS}
-                              className="w-full bg-gradient-to-r from-blue-600 to-blue-500 text-white px-4 py-3 rounded-lg text-sm font-medium
-                                       hover:from-blue-700 hover:to-blue-600 disabled:opacity-50 transition-all duration-300 transform hover:scale-105
-                                       shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
-                            >
-                              {isAnalyzingATS ? (
-                                <>
-                                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"/>
-                                  <span>Analyzing...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                                  </svg>
-                                  <span>Analyze ATS Compatibility</span>
-                                </>
-                              )}
-                            </button>
-                            <button
-                              onClick={checkGrammar}
-                              disabled={isCheckingGrammar}
-                              className="w-full bg-gradient-to-r from-green-600 to-green-500 text-white px-4 py-3 rounded-lg text-sm font-medium
-                                       hover:from-green-700 hover:to-green-600 disabled:opacity-50 transition-all duration-300 transform hover:scale-105
-                                       shadow-md hover:shadow-lg flex items-center justify-center space-x-2"
-                            >
-                              {isCheckingGrammar ? (
-                                <>
-                                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"/>
-                                  <span>Checking...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                  </svg>
-                                  <span>Check Grammar</span>
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                        
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                            <svg className="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
-                            Resume Metrics
-                          </h3>
-                          <div className="space-y-4">
-                            {atsScore !== null && (
-                              <div className="space-y-2 bg-blue-50 p-4 rounded-lg">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm font-medium text-gray-700">ATS Score</span>
-                                  <span className="text-sm font-bold text-blue-600">{atsScore}%</span>
-                                </div>
-                                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-gradient-to-r from-blue-600 to-blue-400 rounded-full transition-all duration-500 ease-out"
-                                    style={{ width: `${atsScore}%` }}
-                                  />
-                                </div>
-                                <div className="flex justify-between items-center mt-2">
-                                  <div className="text-xs text-blue-600">
-                                    {atsScore >= 80 ? 'Great! Your resume is highly optimized for ATS systems.' :
-                                    atsScore >= 60 ? 'Good! With a few tweaks, your resume can be even better.' :
-                                    'Your resume needs improvement to pass ATS systems.'}
-                                  </div>
-                                  {atsAnalysis && (
-                                    <button 
-                                      onClick={() => setShowAtsModal(true)}
-                                      className="text-xs text-blue-700 hover:text-blue-900 font-semibold px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded transition-colors"
-                                    >
-                                      View Details
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                            {grammarScore !== null && (
-                              <div className="space-y-2 bg-green-50 p-4 rounded-lg">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm font-medium text-gray-700">Grammar Score</span>
-                                  <span className="text-sm font-bold text-green-600">{grammarScore}%</span>
-                                </div>
-                                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                                  <div 
-                                    className="h-full bg-gradient-to-r from-green-600 to-green-400 rounded-full transition-all duration-500 ease-out"
-                                    style={{ width: `${grammarScore}%` }}
-                                  />
-                                </div>
-                                <div className="flex justify-between items-center mt-2">
-                                  <div className="text-xs text-green-600">
-                                    {grammarScore >= 80 ? 'Excellent! Your resume has very few grammar issues.' :
-                                    grammarScore >= 60 ? 'Good! Some minor grammar improvements would help.' :
-                                    'Consider reviewing your resume for grammar issues.'}
-                                  </div>
-                                  {grammarAnalysis && (
-                                    <button 
-                                      onClick={() => setShowGrammarModal(true)}
-                                      className="text-xs text-green-700 hover:text-green-900 font-semibold px-2 py-1 bg-green-100 hover:bg-green-200 rounded transition-colors"
-                                    >
-                                      View Details
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              <div className={`col-span-3 lg:col-span-2 h-screen`}>
-                <div className="bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-2xl">
-                    <div className=" h-screen">
-                        <Editor
-                        className=" h-screen"
-                        apiKey="w9wb2nr9fpk741lb6kzvabnhlzj7aimkgqbt1jdvnwi9qgky"
-                        onInit={handleInit}
-                        initialValue={content}
-                        inline={false}
-                        init={{
-                          height: '100%',
-                          menubar: true,
-                          branding: false,
-                          promotion: false,
-                          plugins: [
-                            'lists', 'link', 'image', 'preview',
-                            'table',  'wordcount','print', 
-                          ],
-                          toolbar: 'undo redo | formatselect | ' +
-                            'bold italic | alignleft aligncenter ' +
-                            'alignright | bullist numlist | link | ' ,
-                          content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px }',
-                          skin: 'oxide',
-                          resize: false
-                        }}
-                        />
-                      <div className="absolute top-0 left-0 right-0 text-center p-4 bg-yellow-100 text-yellow-800 
-                                    rounded-t-lg opacity-0 transition-opacity duration-300 shadow-lg" 
-                           style={{ opacity: editorRef.current ? 0 : 0.95 }}>
-                        <div className="flex items-center justify-center space-x-2">
-                          <svg className="animate-spin h-5 w-5 text-yellow-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                          </svg>
-                          <span className="font-medium">Loading editor... If it doesn't appear, try switching to HTML mode.</span>
-                        </div>
-                      </div>
-                    </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-      
-      {/* Share Email Modal */}
+    <Box sx={{ bgcolor: 'background.default', minHeight: '100vh', pb: 6 }}>
       <ShareEmailModal 
-        isOpen={showShareEmailModal}
+        open={showShareEmailModal} 
         onClose={() => setShowShareEmailModal(false)}
         resumeId={id}
         resumeTitle={title}
       />
-
-      {/* ATS Analysis Modal */}
-      {atsAnalysis && (
-        <AtsAnalysisModal 
-          isOpen={showAtsModal}
-          onClose={() => setShowAtsModal(false)}
-          analysis={atsAnalysis}
+      <GrammarAnalysisModal
+        open={showGrammarModal}
+        onClose={() => setShowGrammarModal(false)}
+        analysis={grammarAnalysis}
+      />
+      <AtsAnalysisModal
+        open={showAtsModal}
+        onClose={() => setShowAtsModal(false)}
+        analysis={atsAnalysis}
+      />
+      
+      <AppBar position="static" color="default" elevation={1}>
+        <Toolbar>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            sx={{ 
+              mr: 2,
+              transition: 'all 0.2s',
+              '&:hover': {
+                transform: 'translateX(-3px)'
+              }
+            }}
+            onClick={() => navigate('/dashboard')}
+          >
+            Back
+          </Button>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            {title}
+          </Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<SaveIcon />}
+            onClick={saveResume}
+            disabled={saving}
+            sx={{ 
+              mx: 1,
+              px: 2,
+              boxShadow: 2,
+              transition: 'all 0.3s',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: 4
+              },
+              '&:active': {
+                transform: 'translateY(1px)',
+                boxShadow: 1
+              }
+            }}
+          >
+            {saving ? (
+              <>
+                <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                Saving...
+              </>
+            ) : 'Save'}
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={handleDownloadDocument}
+            sx={{ 
+              mx: 1,
+              px: 2,
+              transition: 'all 0.3s',
+              '&:hover': {
+                bgcolor: 'rgba(25, 118, 210, 0.08)',
+                transform: 'translateY(-2px)'
+              }
+            }}
+          >
+            Download
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<ShareIcon />}
+            onClick={handleShareViaEmail}
+            sx={{ 
+              mx: 1,
+              px: 2,
+              transition: 'all 0.3s',
+              '&:hover': {
+                bgcolor: 'rgba(25, 118, 210, 0.08)',
+                transform: 'translateY(-2px)'
+              }
+            }}
+          >
+            Share
+          </Button>
+          <Tooltip title="Toggle HTML Mode">
+            <IconButton 
+              onClick={toggleHtmlMode} 
+              color={htmlMode ? 'primary' : 'default'}
+              sx={{
+                transition: 'all 0.3s',
+                '&:hover': {
+                  transform: 'rotate(20deg)'
+                }
+              }}
+            >
+              <CodeIcon />
+            </IconButton>
+          </Tooltip>
+        </Toolbar>
+      </AppBar>
+      
+      <Container maxWidth="lg" sx={{ mt: 4 }}>
+        <Snackbar
+          open={!!message}
+          autoHideDuration={3000}
+          onClose={() => setMessage('')}
+          message={message}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
         />
-      )}
-
-      {/* Grammar Analysis Modal */}
-      {grammarAnalysis && (
-        <GrammarAnalysisModal 
-          isOpen={showGrammarModal}
-          onClose={() => setShowGrammarModal(false)}
-          analysis={grammarAnalysis}
-        />
-      )}
-    </div>
+        
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+        
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={4}>
+            <Paper elevation={2} sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Resume Details
+              </Typography>
+              <Divider sx={{ mb: 3 }} />
+              
+              <TextField
+                fullWidth
+                label="Title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <DescriptionIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              
+              <Typography variant="subtitle2" sx={{ mt: 3, mb: 1 }}>
+                Target Position Information
+              </Typography>
+              
+              <TextField
+                fullWidth
+                label="Job Title"
+                value={jobTitle}
+                onChange={(e) => setJobTitle(e.target.value)}
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <WorkIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              
+              <TextField
+                fullWidth
+                label="Target Company"
+                value={targetCompany}
+                onChange={(e) => setTargetCompany(e.target.value)}
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <BusinessIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              
+              <TextField
+                fullWidth
+                label="Target Industry"
+                value={targetIndustry}
+                onChange={(e) => setTargetIndustry(e.target.value)}
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <CategoryIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              
+              <Button
+                fullWidth
+                variant="contained"
+                color="primary"
+                startIcon={<SmartToyIcon />}
+                onClick={generateAIResume}
+                disabled={isGeneratingAI}
+                sx={{ 
+                  mt: 3,
+                  py: 1.5,
+                  background: 'linear-gradient(45deg, #1976d2, #9c27b0)',
+                  transition: 'all 0.3s',
+                  '&:hover': {
+                    background: 'linear-gradient(45deg, #1565c0, #7b1fa2)',
+                    boxShadow: 4,
+                    transform: 'translateY(-2px)'
+                  },
+                  '&:active': {
+                    transform: 'translateY(1px)',
+                    boxShadow: 1
+                  }
+                }}
+              >
+                {isGeneratingAI ? (
+                  <>
+                    <CircularProgress size={24} sx={{ mr: 1, color: 'white' }} />
+                    Generating...
+                  </>
+                ) : (
+                  'Generate AI Resume'
+                )}
+              </Button>
+              
+              <Divider sx={{ my: 3 }} />
+              
+              <Typography variant="subtitle2" gutterBottom>
+                Resume Analysis
+              </Typography>
+              
+              <Grid container spacing={2} sx={{ mb: 2 }}>
+                <Grid item xs={6}>
+                  <Card variant="outlined" sx={{ 
+                    height: '100%',
+                    transition: 'all 0.3s',
+                    '&:hover': { boxShadow: 2 }
+                  }}>
+                    <CardContent>
+                      <Typography variant="body2" color="text.secondary">
+                        ATS Score
+                      </Typography>
+                      {atsScore ? (
+                        <>
+                          <Typography variant="h5" color="primary" sx={{ mt: 1 }}>
+                            {atsScore}%
+                          </Typography>
+                          <LinearProgress 
+                            variant="determinate" 
+                            value={atsScore} 
+                            sx={{ mt: 1, height: 6, borderRadius: 3 }} 
+                            color={atsScore > 70 ? "success" : atsScore > 40 ? "warning" : "error"}
+                          />
+                        </>
+                      ) : (
+                        <Typography variant="body2" sx={{ fontStyle: 'italic', mt: 1 }}>
+                          Not analyzed
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={6}>
+                  <Card variant="outlined" sx={{ 
+                    height: '100%',
+                    transition: 'all 0.3s',
+                    '&:hover': { boxShadow: 2 }
+                  }}>
+                    <CardContent>
+                      <Typography variant="body2" color="text.secondary">
+                        Grammar Score
+                      </Typography>
+                      {grammarScore ? (
+                        <>
+                          <Typography variant="h5" color="primary" sx={{ mt: 1 }}>
+                            {grammarScore}%
+                          </Typography>
+                          <LinearProgress 
+                            variant="determinate" 
+                            value={grammarScore} 
+                            sx={{ mt: 1, height: 6, borderRadius: 3 }} 
+                            color={grammarScore > 70 ? "success" : grammarScore > 40 ? "warning" : "error"}
+                          />
+                        </>
+                      ) : (
+                        <Typography variant="body2" sx={{ fontStyle: 'italic', mt: 1 }}>
+                          Not analyzed
+                        </Typography>
+                      )}
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+              
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<AssessmentIcon />}
+                onClick={analyzeATS}
+                disabled={isAnalyzingATS}
+                sx={{ 
+                  mb: 2,
+                  py: 1.2,
+                  borderWidth: '2px',
+                  transition: 'all 0.3s',
+                  '&:hover': {
+                    borderWidth: '2px',
+                    bgcolor: 'rgba(25, 118, 210, 0.04)',
+                    transform: 'translateY(-2px)'
+                  }
+                }}
+              >
+                {isAnalyzingATS ? (
+                  <>
+                    <CircularProgress size={20} color="primary" sx={{ mr: 1 }} />
+                    Analyzing...
+                  </>
+                ) : 'Analyze ATS Score'}
+              </Button>
+              
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<SpellcheckIcon />}
+                onClick={checkGrammar}
+                disabled={isCheckingGrammar}
+                sx={{ 
+                  py: 1.2,
+                  borderWidth: '2px',
+                  transition: 'all 0.3s',
+                  '&:hover': {
+                    borderWidth: '2px',
+                    bgcolor: 'rgba(25, 118, 210, 0.04)',
+                    transform: 'translateY(-2px)'
+                  }
+                }}
+              >
+                {isCheckingGrammar ? (
+                  <>
+                    <CircularProgress size={20} color="primary" sx={{ mr: 1 }} />
+                    Checking...
+                  </>
+                ) : 'Check Grammar'}
+              </Button>
+            </Paper>
+          </Grid>
+          
+          <Grid item xs={12} md={8}>
+            <Paper elevation={3} sx={{ p: 4, mb: 6, borderRadius: 2 }}>
+              {/* Template Selection */}
+              <Box sx={{ textAlign: 'center', py: 4 }}>
+                <Typography variant="h5" gutterBottom>
+                  Template Selection
+                </Typography>
+                <Typography variant="body1" color="text.secondary" paragraph>
+                  Choose a template that best represents your professional style.
+                </Typography>
+                
+                <Grid container spacing={3} sx={{ mt: 2 }}>
+                  {/* Professional Template */}
+                  <Grid item xs={12} sm={4}>
+                    <Paper 
+                      elevation={template === 'professional' ? 4 : 1}
+                      sx={{
+                        p: 2,
+                        cursor: 'pointer',
+                        border: template === 'professional' ? '2px solid' : '1px solid',
+                        borderColor: template === 'professional' ? 'primary.main' : 'divider',
+                        borderRadius: 2,
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'translateY(-5px)',
+                          boxShadow: 3
+                        }
+                      }}
+                      onClick={() => handleTemplateSelect('professional')}
+                    >
+                      <Box 
+                        sx={{ 
+                          height: 150, 
+                          bgcolor: 'grey.100', 
+                          mb: 2, 
+                          borderRadius: 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          p: 1
+                        }}
+                      >
+                        <Box sx={{ height: '20%', bgcolor: 'grey.300', width: '70%', mx: 'auto', mb: 1 }} />
+                        <Box sx={{ display: 'flex', height: '70%', gap: 1 }}>
+                          <Box sx={{ width: '30%', bgcolor: 'primary.100' }} />
+                          <Box sx={{ width: '70%' }}>
+                            <Box sx={{ height: '20%', bgcolor: 'grey.300', mb: 1 }} />
+                            <Box sx={{ height: '20%', bgcolor: 'grey.300', mb: 1, width: '80%' }} />
+                            <Box sx={{ height: '20%', bgcolor: 'grey.300', width: '60%' }} />
+                          </Box>
+                        </Box>
+                      </Box>
+                      <Typography variant="subtitle1" fontWeight="bold" align="center">
+                        Professional
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" align="center">
+                        Classic, corporate-friendly design
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                  
+                  {/* Creative Template */}
+                  <Grid item xs={12} sm={4}>
+                    <Paper 
+                      elevation={template === 'creative' ? 4 : 1}
+                      sx={{
+                        p: 2,
+                        cursor: 'pointer',
+                        border: template === 'creative' ? '2px solid' : '1px solid',
+                        borderColor: template === 'creative' ? 'primary.main' : 'divider',
+                        borderRadius: 2,
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'translateY(-5px)',
+                          boxShadow: 3
+                        }
+                      }}
+                      onClick={() => handleTemplateSelect('creative')}
+                    >
+                      <Box 
+                        sx={{ 
+                          height: 150, 
+                          bgcolor: 'grey.100', 
+                          mb: 2, 
+                          borderRadius: 1,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          p: 1
+                        }}
+                      >
+                        <Box sx={{ height: '30%', bgcolor: 'secondary.light', borderRadius: '50%', width: '30%', mx: 'auto', mb: 1 }} />
+                        <Box sx={{ display: 'flex', height: '60%', gap: 1, flexDirection: 'column' }}>
+                          <Box sx={{ height: '30%', bgcolor: 'grey.300', width: '80%', mx: 'auto', borderRadius: 10 }} />
+                          <Box sx={{ height: '30%', display: 'flex', justifyContent: 'center', gap: 1 }}>
+                            <Box sx={{ height: '100%', width: '20%', bgcolor: 'secondary.100', borderRadius: 1 }} />
+                            <Box sx={{ height: '100%', width: '20%', bgcolor: 'secondary.200', borderRadius: 1 }} />
+                            <Box sx={{ height: '100%', width: '20%', bgcolor: 'secondary.300', borderRadius: 1 }} />
+                          </Box>
+                        </Box>
+                      </Box>
+                      <Typography variant="subtitle1" fontWeight="bold" align="center">
+                        Creative
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" align="center">
+                        Modern design for creative fields
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                  
+                  {/* Modern Template */}
+                  <Grid item xs={12} sm={4}>
+                    <Paper 
+                      elevation={template === 'modern' ? 4 : 1}
+                      sx={{
+                        p: 2,
+                        cursor: 'pointer',
+                        border: template === 'modern' ? '2px solid' : '1px solid',
+                        borderColor: template === 'modern' ? 'primary.main' : 'divider',
+                        borderRadius: 2,
+                        transition: 'all 0.3s ease',
+                        '&:hover': {
+                          transform: 'translateY(-5px)',
+                          boxShadow: 3
+                        }
+                      }}
+                      onClick={() => handleTemplateSelect('modern')}
+                    >
+                      <Box 
+                        sx={{ 
+                          height: 150, 
+                          bgcolor: 'grey.100', 
+                          mb: 2, 
+                          borderRadius: 1,
+                          display: 'flex',
+                          p: 1
+                        }}
+                      >
+                        <Box sx={{ width: '40%', bgcolor: 'primary.dark', mr: 1 }} />
+                        <Box sx={{ width: '60%', display: 'flex', flexDirection: 'column', gap: 1 }}>
+                          <Box sx={{ height: '25%', bgcolor: 'grey.300' }} />
+                          <Box sx={{ height: '25%', bgcolor: 'grey.300', width: '80%' }} />
+                          <Box sx={{ height: '25%', bgcolor: 'grey.300', width: '60%' }} />
+                        </Box>
+                      </Box>
+                      <Typography variant="subtitle1" fontWeight="bold" align="center">
+                        Modern
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary" align="center">
+                        Contemporary, balanced layout
+                      </Typography>
+                    </Paper>
+                  </Grid>
+                </Grid>
+                
+                {id === 'new' && step === 1 && (
+                  <Button 
+                    variant="contained" 
+                    color="primary" 
+                    size="large"
+                    onClick={proceedToEditor}
+                    sx={{ mt: 4, px: 4 }}
+                  >
+                    Continue with Selected Template
+                  </Button>
+                )}
+              </Box>
+            </Paper>
+            
+            <Paper elevation={2} sx={{ p: 3, height: '100%' }}>
+              {editorFailed ? (
+                <Box sx={{ 
+                  p: 4, 
+                  textAlign: 'center',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  minHeight: '400px',
+                  bgcolor: 'background.paper',
+                  borderRadius: 2
+                }}>
+                  <Box sx={{ 
+                    width: 80, 
+                    height: 80, 
+                    borderRadius: '50%', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    bgcolor: 'error.light',
+                    mb: 3
+                  }}>
+                    <CodeIcon sx={{ fontSize: 40, color: 'error.contrastText' }} />
+                  </Box>
+                  <Typography variant="h5" color="error" gutterBottom fontWeight="medium">
+                    Editor Failed to Load
+                  </Typography>
+                  <Typography paragraph color="text.secondary" sx={{ maxWidth: 450, mb: 3 }}>
+                    There was a problem loading the rich text editor. This could be due to network issues or browser compatibility.
+                  </Typography>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    onClick={() => window.location.reload()}
+                    startIcon={<CloudUploadIcon />}
+                    sx={{ 
+                      px: 3,
+                      py: 1.2,
+                      boxShadow: 2,
+                      transition: 'all 0.2s',
+                      '&:hover': {
+                        transform: 'translateY(-2px)',
+                        boxShadow: 4
+                      }
+                    }}
+                  >
+                    Refresh Page
+                  </Button>
+                </Box>
+              ) : (
+                <Box>
+                  <Typography variant="h6" gutterBottom sx={{ px: 1, display: 'flex', alignItems: 'center' }}>
+                    <DescriptionIcon sx={{ mr: 1, color: 'primary.main' }} />
+                    Resume Content
+                    {htmlMode && (
+                      <Chip 
+                        label="HTML Mode" 
+                        size="small" 
+                        color="primary" 
+                        variant="outlined" 
+                        sx={{ ml: 2 }}
+                      />
+                    )}
+                  </Typography>
+                  <Box sx={{ 
+                    height: '800px', 
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    mt: 2,
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                    transition: 'all 0.3s',
+                    '&:hover': {
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                    } 
+                  }}>
+                    {htmlMode ? (
+                      <TextField
+                        fullWidth
+                        multiline
+                        variant="outlined"
+                        value={content}
+                        onChange={(e) => setContent(e.target.value)}
+                        sx={{ height: '100%' }}
+                        InputProps={{
+                          sx: { 
+                            height: '100%', 
+                            fontFamily: 'monospace', 
+                            fontSize: '0.9rem',
+                            '& .MuiOutlinedInput-input': { 
+                              height: '100%', 
+                              overflow: 'auto',
+                              padding: 2
+                            },
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              border: 'none'
+                            }
+                          }
+                        }}
+                      />
+                    ) : (
+                      <Editor
+                        apiKey="w9wb2nr9fpk741lb6kzvabnhlzj7aimkgqbt1jdvnwi9qgky"
+                        init={{
+                          height: '100%',
+                          menubar: true,
+                          plugins: [
+                            'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                            'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                            'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount'
+                          ],
+                          toolbar: 'undo redo | formatselect | ' +
+                            'bold italic backcolor | alignleft aligncenter ' +
+                            'alignright alignjustify | bullist numlist outdent indent | ' +
+                            'removeformat | help',
+                          content_style: 'body { font-family:Helvetica,Arial,sans-serif; font-size:14px; padding: 20px; }',
+                          skin: 'oxide',
+                          resize: false,
+                          branding: false,
+                          statusbar: true
+                        }}
+                        initialValue={content}
+                        onInit={handleInit}
+                        onEditorChange={(content) => {
+                          setContent(content);
+                        }}
+                        onLoadError={handleEditorLoadError}
+                      />
+                    )}
+                  </Box>
+                </Box>
+              )}
+            </Paper>
+          </Grid>
+        </Grid>
+      </Container>
+    </Box>
   );
 }
 
-export default ResumeEditor; 
+export default ResumeEditor;
