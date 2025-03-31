@@ -17,7 +17,7 @@ async function generateResumeHandler(request) {
       );
     }
     
-    const { jobTitle, targetCompany, targetIndustry } = await request.json();
+    const { jobTitle, targetCompany, targetIndustry, template = 'professional' } = await request.json();
     
     if (!jobTitle) {
       console.log('AI Resume API: Job title missing');
@@ -47,7 +47,7 @@ async function generateResumeHandler(request) {
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_gemini_api_key') {
       console.log('AI Resume API: Using mock response (no API key)');
       
-      const mockHtmlContent = generateDefaultResumeContent(user, jobTitle, targetCompany, targetIndustry, hasProfile, hasExperience, hasEducation, hasSkills);
+      const mockHtmlContent = generateDefaultResumeContent(user, jobTitle, targetCompany, targetIndustry, hasProfile, hasExperience, hasEducation, hasSkills, template);
       
       return NextResponse.json({
         success: true,
@@ -71,7 +71,7 @@ async function generateResumeHandler(request) {
       summary: generateDefaultSummary(user.name, jobTitle, targetCompany, targetIndustry, hasProfile)
     };
 
-    const prompt = constructResumePrompt(userData, jobTitle, targetCompany, targetIndustry);
+    const prompt = constructResumePrompt(userData, jobTitle, targetCompany, targetIndustry, template);
     
     try {
 
@@ -169,7 +169,7 @@ async function generateResumeHandler(request) {
       console.error('AI Resume API: Gemini API error:', apiError.message);
       
 
-      const fallbackContent = generateDefaultResumeContent(user, jobTitle, targetCompany, targetIndustry, hasProfile, hasExperience, hasEducation, hasSkills);
+      const fallbackContent = generateDefaultResumeContent(user, jobTitle, targetCompany, targetIndustry, hasProfile, hasExperience, hasEducation, hasSkills, template);
       
       return NextResponse.json({
         success: true,
@@ -381,7 +381,7 @@ function shuffleArray(array) {
   return newArray;
 }
 
-function constructResumePrompt(userData, jobTitle, targetCompany, targetIndustry) {
+function constructResumePrompt(userData, jobTitle, targetCompany, targetIndustry, template = 'professional') {
   const hasBasicInfo = userData.name && userData.email;
   const hasContactInfo = userData.phone || userData.address || userData.website || userData.linkedin || userData.github;
   const hasExperience = userData.experience && userData.experience.length > 0;
@@ -410,6 +410,67 @@ A ${jobTitle} candidate`;
   }
   
   prompt += '.\n\n';
+
+  // Add template information
+  prompt += `USE THIS SPECIFIC TEMPLATE STYLE: ${template}\n`;
+  
+  // Provide specific styling guidance based on the template
+  if (template === 'professional') {
+    prompt += `
+Template style guidelines:
+- Clean, traditional format suitable for corporate environments
+- Use a neutral color palette (navy, gray, black)
+- Center the header section with name and contact info
+- Use horizontal dividers between sections
+- Use standard, readable fonts
+- Simple, elegant styling without too many design elements
+
+HTML STRUCTURE GUIDANCE:
+- Create a single-column layout with centered header 
+- Keep the design traditional and corporate
+- Content sections should be in this order: summary, experience, education, skills
+- Put name and contact info centered at the top
+- Use subtle borders or dividers between sections
+`;
+  } else if (template === 'creative') {
+    prompt += `
+Template style guidelines:
+- Modern, eye-catching design for creative fields
+- Use a distinctive color scheme with purple (#9c27b0) as primary accent color
+- Include a circular element with the person's initial in the header
+- Use distinctive section headers with color accents
+- Style skills as pill/badge elements
+- More visual spacing and modern typography
+
+HTML STRUCTURE GUIDANCE:
+- Create a circular avatar element with the person's first initial in purple (#9c27b0)
+- Center the header section with the person's name below the avatar
+- Use purple accent colors for section headers with underlines
+- Display skills as pill-shaped badges with light purple background
+- Use more white space and modern typography
+- Center the summary in a light purple box with rounded corners
+`;
+  } else if (template === 'modern') {
+    prompt += `
+Template style guidelines:
+- Contemporary two-column layout
+- Left sidebar in blue (#1976d2) with contact info, skills and education
+- Main content area on the right with summary and experience
+- Clear hierarchy with distinct section headers
+- Clean dividers and balanced spacing
+- Professional but contemporary look
+
+HTML STRUCTURE GUIDANCE:
+- Create a two-column layout with a blue sidebar
+- Put contact info, skills and education in the colored sidebar
+- Put professional summary and work experience in the main right column
+- Use blue accent colors for section headers in the main content
+- Make sure the layout is responsive and can adjust to different screen sizes
+- Use dividing lines for section headers
+`;
+  }
+
+  prompt += '\n';
   
   if (completenessScore < 0.5) {
     prompt += `SPECIAL INSTRUCTION: This candidate has provided limited information. Please generate appropriate 
@@ -507,7 +568,7 @@ ${targetIndustry ? `in the ${targetIndustry} industry` : ''}. Make it realistic 
 10. Format dates, job titles, and company names consistently
 11. If creating experiences from scratch, include realistic metrics and achievements with numbers
 
-RESPONSE FORMAT: Respond with ONLY the HTML resume content, nothing else - no explanations, no markdown formatting, just the raw HTML.  And if you feel that any section have have not good discribtion feel free to improve the content of that section and give a best of the resume for the same post`;
+RESPONSE FORMAT: Respond with ONLY the HTML resume content, nothing else - no explanations, no markdown formatting, just the raw HTML.  And if you feel that any section have have not good discribtion feel free to improve the content of that section and give a best of the resume for the same post and if there no complete information according to job position feel free to add them and make resume more attractive me qualification and experience feel free to update the user data according to the requirement of the job and create a best resume for the user if there is no much content in user data feel free to add more and give complete and atttractive resume`;
 
   return prompt;
 }
@@ -542,288 +603,201 @@ function fixHtmlIssues(htmlContent) {
   return htmlContent;
 }
 
-function generateDefaultResumeContent(user, jobTitle, targetCompany, targetIndustry, hasProfile, hasExperience, hasEducation, hasSkills) {
+function generateDefaultResumeContent(user, jobTitle, targetCompany, targetIndustry, hasProfile, hasExperience, hasEducation, hasSkills, template = 'professional') {
   const defaultSkills = generateDefaultSkills(jobTitle, targetIndustry);
   
-  return `
-<div style="font-family: 'Roboto', Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 40px; color: #333; line-height: 1.5; background: #fff; box-shadow: 0 1px 5px rgba(0,0,0,0.1);">
-  <div class="header" style="text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #3b82f6;">
-    <h1 style="margin: 0 0 10px; font-size: 32px; color: #1e40af; font-weight: 700;">${user.name}</h1>
-    <p style="margin: 0; color: #4b5563; font-size: 16px;">
-      ${user.email}
-      ${hasProfile.personalDetails?.phone ? ` | ${hasProfile.personalDetails.phone}` : ''}
-      ${hasProfile.personalDetails?.address ? ` | ${hasProfile.personalDetails.address}` : ''}
-      ${hasProfile.personalDetails?.website ? ` | <a href="${hasProfile.personalDetails.website}" style="color: #3b82f6; text-decoration: none;">Portfolio</a>` : ''}
-      ${hasProfile.personalDetails?.linkedIn ? ` | <a href="${hasProfile.personalDetails.linkedIn}" style="color: #3b82f6; text-decoration: none;">LinkedIn</a>` : ''}
-      ${hasProfile.personalDetails?.github ? ` | <a href="${hasProfile.personalDetails.github}" style="color: #3b82f6; text-decoration: none;">GitHub</a>` : ''}
-    </p>
-  </div>
+  const name = user.name || 'Your Name';
+  const email = user.email || 'your.email@example.com';
+  const phone = hasProfile.personalDetails?.phone || '(123) 456-7890';
+  const location = hasProfile.personalDetails?.address || 'City, State';
   
-  <div class="section" style="margin-bottom: 25px;">
-    <h2 style="font-size: 22px; font-weight: 600; margin: 0 0 15px; padding-bottom: 8px; color: #1e40af; border-bottom: 1px solid #e5e7eb;">Professional Summary</h2>
-    <p style="margin: 0; font-size: 16px; color: #4b5563;">${generateDefaultSummary(user.name, jobTitle, targetCompany, targetIndustry, hasProfile)}</p>
-  </div>
+  const skillsList = hasSkills && hasProfile.skills.length > 0 
+    ? hasProfile.skills 
+    : defaultSkills;
   
-  <div class="section" style="margin-bottom: 25px;">
-    <h2 style="font-size: 22px; font-weight: 600; margin: 0 0 15px; padding-bottom: 8px; color: #1e40af; border-bottom: 1px solid #e5e7eb;">Experience</h2>
-    ${hasExperience ? 
-      hasProfile.experience.map(exp => `
-        <div class="job" style="margin-bottom: 20px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-            <h3 style="font-size: 18px; font-weight: 600; margin: 0; color: #1f2937;">${exp.position}</h3>
-            <span style="font-style: italic; color: #6b7280;">${new Date(exp.startDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'})} - ${exp.endDate ? new Date(exp.endDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}) : 'Present'}</span>
-          </div>
-          <p class="company" style="margin: 0 0 10px; font-weight: 500; color: #4b5563;">${exp.company}</p>
-          ${exp.description ? 
-            `<p style="margin: 10px 0; color: #4b5563;">${exp.description}</p>` : 
-            `<ul style="margin: 10px 0 0 20px; padding: 0; color: #4b5563;">
-              <li style="margin-bottom: 8px;">Led initiatives to improve ${generateRelevantTask(jobTitle, 1)}</li>
-              <li style="margin-bottom: 8px;">Collaborated with cross-functional teams to ${generateRelevantTask(jobTitle, 2)}</li>
-              <li style="margin-bottom: 8px;">Successfully implemented strategies resulting in ${generateRelevantTask(jobTitle, 3)}</li>
-            </ul>`
-          }
-        </div>
-      `).join('') : 
-      generateDefaultExperience(jobTitle, targetIndustry)
-    }
-  </div>
-  
-  <div class="section" style="margin-bottom: 25px;">
-    <h2 style="font-size: 22px; font-weight: 600; margin: 0 0 15px; padding-bottom: 8px; color: #1e40af; border-bottom: 1px solid #e5e7eb;">Education</h2>
-    ${hasEducation ? 
-      hasProfile.education.map(edu => `
-        <div class="education" style="margin-bottom: 15px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-            <h3 style="font-size: 18px; font-weight: 600; margin: 0; color: #1f2937;">${edu.degree} in ${edu.field}</h3>
-            <span style="font-style: italic; color: #6b7280;">${new Date(edu.startDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'})} - ${edu.endDate ? new Date(edu.endDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}) : 'Present'}</span>
-          </div>
-          <p style="margin: 0; color: #4b5563;">${edu.institution}</p>
-          ${edu.description ? `<p style="margin: 5px 0 0; color: #6b7280;">${edu.description}</p>` : ''}
-        </div>
-      `).join('') : 
-      `<div class="education" style="margin-bottom: 15px;">
-        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-          <h3 style="font-size: 18px; font-weight: 600; margin: 0; color: #1f2937;">${generateDefaultDegree(jobTitle)} in ${generateDefaultField(jobTitle)}</h3>
-          <span style="font-style: italic; color: #6b7280;">Sep 2015 - May 2019</span>
-        </div>
-        <p style="margin: 0; color: #4b5563;">University of ${targetIndustry || 'State'}</p>
-      </div>`
-    }
-  </div>
-  
-  <div class="section" style="margin-bottom: 25px;">
-    <h2 style="font-size: 22px; font-weight: 600; margin: 0 0 15px; padding-bottom: 8px; color: #1e40af; border-bottom: 1px solid #e5e7eb;">Skills</h2>
-    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
-      ${(hasSkills ? hasProfile.skills : defaultSkills).map(skill => `
-        <div style="background: #eff6ff; color: #1e40af; padding: 6px 12px; border-radius: 30px; font-size: 14px; font-weight: 500;">${skill}</div>
-      `).join('')}
-    </div>
-  </div>
+  const experiences = hasExperience && hasProfile.experience && hasProfile.experience.length > 0
+    ? hasProfile.experience.map(exp => ({
+        title: exp.position,
+        company: exp.company,
+        startDate: new Date(exp.startDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}),
+        endDate: exp.endDate ? new Date(exp.endDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}) : 'Present',
+        description: exp.description || generateResponsibilities(jobTitle).join(' ')
+      }))
+    : [
+        {
+          title: jobTitle,
+          company: generateCompanyName(jobTitle, targetIndustry),
+          startDate: 'Jan 2020',
+          endDate: 'Present',
+          description: generateResponsibilities(jobTitle).join(' ')
+        },
+        {
+          title: generateJuniorTitle(jobTitle),
+          company: generateCompanyName(jobTitle, targetIndustry, true),
+          startDate: 'Jun 2017',
+          endDate: 'Dec 2019',
+          description: [
+            generateRelevantTask(jobTitle, 0),
+            generateRelevantTask(jobTitle, 1),
+            generateRelevantTask(jobTitle, 2)
+          ].join(' ')
+        }
+      ];
 
-  ${hasProfile.certifications && hasProfile.certifications.length > 0 ? 
-    `<div class="section" style="margin-bottom: 25px;">
-      <h2 style="font-size: 22px; font-weight: 600; margin: 0 0 15px; padding-bottom: 8px; color: #1e40af; border-bottom: 1px solid #e5e7eb;">Certifications</h2>
-      <ul style="margin: 10px 0 0 20px; padding: 0; color: #4b5563;">
-        ${hasProfile.certifications.map(cert => `
-          <li style="margin-bottom: 8px;">${cert.name} - ${cert.issuer} (${new Date(cert.date).getFullYear()})</li>
-        `).join('')}
-      </ul>
-    </div>` : 
-    ''
-  }
+  const education = hasEducation && hasProfile.education && hasProfile.education.length > 0
+    ? hasProfile.education.map(edu => ({
+        degree: edu.degree,
+        field: edu.field,
+        institution: edu.institution,
+        startDate: new Date(edu.startDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}),
+        endDate: edu.endDate ? new Date(edu.endDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}) : 'Present'
+      }))
+    : [
+        {
+          degree: generateDefaultDegree(jobTitle),
+          field: generateDefaultField(jobTitle),
+          institution: 'University of ' + (targetIndustry || 'Technology'),
+          startDate: 'Sep 2013',
+          endDate: 'May 2017'
+        }
+      ];
 
-  ${hasProfile.achievements && hasProfile.achievements.length > 0 ? 
-    `<div class="section" style="margin-bottom: 25px;">
-      <h2 style="font-size: 22px; font-weight: 600; margin: 0 0 15px; padding-bottom: 8px; color: #1e40af; border-bottom: 1px solid #e5e7eb;">Achievements</h2>
-      <ul style="margin: 10px 0 0 20px; padding: 0; color: #4b5563;">
-        ${hasProfile.achievements.map(achievement => `
-          <li style="margin-bottom: 8px;">${achievement}</li>
-        `).join('')}
-      </ul>
-    </div>` : 
-    ''
-  }
-
-  <div class="footer" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 14px; color: #6b7280;">
-    <p style="margin: 0;">References available upon request</p>
-  </div>
-</div>
-  `;
-}
-
-// Helper function to generate default experience content based on job title
-function generateDefaultExperience(jobTitle, targetIndustry) {
-  const jobSpecificCompany = generateCompanyName(jobTitle, targetIndustry);
-  const jobSpecificResponsibilities = generateResponsibilities(jobTitle);
-  
-  return `
-    <div class="job" style="margin-bottom: 20px;">
-      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-        <h3 style="font-size: 18px; font-weight: 600; margin: 0; color: #1f2937;">${jobTitle}</h3>
-        <span style="font-style: italic; color: #6b7280;">Jan 2020 - Present</span>
+  // Professional template (default)
+  if (template === 'professional' || !template) {
+    return `<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 30px;">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h1 style="margin: 0; color: #333;">${name}</h1>
+        <p style="margin: 5px 0;">${email} | ${phone} | ${location}</p>
       </div>
-      <p class="company" style="margin: 0 0 10px; font-weight: 500; color: #4b5563;">${jobSpecificCompany}</p>
-      <ul style="margin: 10px 0 0 20px; padding: 0; color: #4b5563;">
-        ${jobSpecificResponsibilities.map(responsibility => `
-          <li style="margin-bottom: 8px;">${responsibility}</li>
-        `).join('')}
-      </ul>
-    </div>
-    <div class="job" style="margin-bottom: 20px;">
-      <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-        <h3 style="font-size: 18px; font-weight: 600; margin: 0; color: #1f2937;">${generateJuniorTitle(jobTitle)}</h3>
-        <span style="font-style: italic; color: #6b7280;">Jun 2017 - Dec 2019</span>
+      <div style="margin-bottom: 20px;">
+        <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Summary</h2>
+        <p>${generateDefaultSummary(name, jobTitle, targetCompany, targetIndustry, hasProfile)}</p>
       </div>
-      <p class="company" style="margin: 0 0 10px; font-weight: 500; color: #4b5563;">${generateCompanyName(jobTitle, targetIndustry, true)}</p>
-      <ul style="margin: 10px 0 0 20px; padding: 0; color: #4b5563;">
-        <li style="margin-bottom: 8px;">Assisted in ${generateRelevantTask(jobTitle, 4)}</li>
-        <li style="margin-bottom: 8px;">Supported team in ${generateRelevantTask(jobTitle, 5)}</li>
-        <li style="margin-bottom: 8px;">Contributed to ${generateRelevantTask(jobTitle, 6)}</li>
-      </ul>
-    </div>
-  `;
+      <div style="margin-bottom: 20px;">
+        <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Experience</h2>
+        ${experiences.map(exp => `
+          <div style="margin-bottom: 15px;">
+            <h3 style="margin: 0; font-size: 16px;">${exp.title}</h3>
+            <p style="margin: 0; font-style: italic;">${exp.company} | ${exp.startDate} - ${exp.endDate}</p>
+            <ul>
+              ${exp.description.split('. ').filter(s => s.trim()).map(sentence => 
+                `<li>${sentence.trim() + (sentence.endsWith('.') ? '' : '.')}</li>`
+              ).join('')}
+            </ul>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-bottom: 20px;">
+        <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Education</h2>
+        ${education.map(edu => `
+          <div>
+            <h3 style="margin: 0; font-size: 16px;">${edu.degree} in ${edu.field}</h3>
+            <p style="margin: 0; font-style: italic;">${edu.institution} | ${edu.startDate} - ${edu.endDate}</p>
+          </div>
+        `).join('')}
+      </div>
+      <div>
+        <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Skills</h2>
+        <p>${skillsList.join(', ')}</p>
+      </div>
+    </div>`;
+  } 
+  // Creative template
+  else if (template === 'creative') {
+    return `<div style="font-family: 'Roboto', sans-serif; max-width: 800px; margin: 0 auto; padding: 30px;">
+      <div style="text-align: center; margin-bottom: 25px;">
+        <div style="width: 120px; height: 120px; border-radius: 50%; background-color: #9c27b0; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
+          <h1 style="margin: 0; color: white; font-size: 48px;">${name.charAt(0)}</h1>
+        </div>
+        <h1 style="margin: 0 0 10px; color: #9c27b0; font-size: 32px;">${name}</h1>
+        <p style="margin: 5px 0; font-size: 16px; color: #666;">${email} | ${phone} | ${location}</p>
+      </div>
+      <div style="margin-bottom: 20px; text-align: center;">
+        <p style="background-color: #f3e5f5; padding: 15px; border-radius: 8px; color: #555; font-style: italic;">
+          ${generateDefaultSummary(name, jobTitle, targetCompany, targetIndustry, hasProfile)}
+        </p>
+      </div>
+      <div style="margin-bottom: 25px;">
+        <h2 style="font-size: 22px; color: #9c27b0; border-bottom: 2px solid #9c27b0; padding-bottom: 5px; display: inline-block;">Experience</h2>
+        ${experiences.map(exp => `
+          <div style="margin-bottom: 15px; padding: 10px 0;">
+            <h3 style="margin: 0; font-size: 18px; color: #333;">${exp.title}</h3>
+            <p style="margin: 5px 0 10px; font-style: italic; color: #666;">${exp.company} | ${exp.startDate} - ${exp.endDate}</p>
+            <ul style="margin: 0; padding-left: 20px; color: #555;">
+              ${exp.description.split('. ').filter(s => s.trim()).map(sentence => 
+                `<li style="margin-bottom: 8px;">${sentence.trim() + (sentence.endsWith('.') ? '' : '.')}</li>`
+              ).join('')}
+            </ul>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-bottom: 25px;">
+        <h2 style="font-size: 22px; color: #9c27b0; border-bottom: 2px solid #9c27b0; padding-bottom: 5px; display: inline-block;">Education</h2>
+        ${education.map(edu => `
+          <div style="padding: 10px 0;">
+            <h3 style="margin: 0; font-size: 18px; color: #333;">${edu.degree} in ${edu.field}</h3>
+            <p style="margin: 5px 0; font-style: italic; color: #666;">${edu.institution} | ${edu.startDate} - ${edu.endDate}</p>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-bottom: 25px;">
+        <h2 style="font-size: 22px; color: #9c27b0; border-bottom: 2px solid #9c27b0; padding-bottom: 5px; display: inline-block;">Skills</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px;">
+          ${skillsList.map(skill => 
+            `<span style="background-color: #f3e5f5; padding: 8px 15px; border-radius: 20px; color: #9c27b0; font-weight: 500;">${skill}</span>`
+          ).join('')}
+        </div>
+      </div>
+    </div>`;
+  }
+  // Modern template
+  else if (template === 'modern') {
+    return `<div style="font-family: 'Inter', sans-serif; max-width: 800px; margin: 0 auto; padding: 30px;">
+      <div style="display: flex; margin-bottom: 30px; flex-wrap: wrap;">
+        <div style="background-color: #1976d2; width: 30%; padding: 30px; color: white; min-width: 200px; flex: 1;">
+          <h1 style="margin: 0 0 20px; font-size: 28px;">${name}</h1>
+          <p style="margin: 0 0 5px; font-size: 14px;">Email: ${email}</p>
+          <p style="margin: 0 0 5px; font-size: 14px;">Phone: ${phone}</p>
+          <p style="margin: 0 0 25px; font-size: 14px;">Location: ${location}</p>
+          
+          <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Skills</h3>
+          <ul style="margin: 0; padding-left: 20px;">
+            ${skillsList.map(skill => 
+              `<li style="margin-bottom: 8px;">${skill}</li>`
+            ).join('')}
+          </ul>
+          
+          <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Education</h3>
+          ${education.map(edu => `
+            <h4 style="margin: 0; font-size: 16px;">${edu.degree} in ${edu.field}</h4>
+            <p style="margin: 5px 0 0; font-style: italic; font-size: 14px;">${edu.institution}</p>
+            <p style="margin: 5px 0 15px; font-size: 14px;">${edu.startDate} - ${edu.endDate}</p>
+          `).join('')}
+        </div>
+        
+        <div style="width: 70%; padding: 30px; min-width: 300px; flex: 2;">
+          <h2 style="font-size: 20px; color: #1976d2; margin: 0 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Professional Summary</h2>
+          <p style="color: #444; line-height: 1.6;">${generateDefaultSummary(name, jobTitle, targetCompany, targetIndustry, hasProfile)}</p>
+          
+          <h2 style="font-size: 20px; color: #1976d2; margin: 30px 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Work Experience</h2>
+          
+          ${experiences.map(exp => `
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0; font-size: 18px; color: #333;">${exp.title}</h3>
+              <p style="margin: 5px 0; font-weight: 500; color: #666;">${exp.company} | ${exp.startDate} - ${exp.endDate}</p>
+              <ul style="margin: 10px 0 0; padding-left: 20px; color: #444;">
+                ${exp.description.split('. ').filter(s => s.trim()).map(sentence => 
+                  `<li style="margin-bottom: 8px;">${sentence.trim() + (sentence.endsWith('.') ? '' : '.')}</li>`
+                ).join('')}
+              </ul>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>`;
+  }
 }
 
-// Helper function to generate a junior version of the job title
-function generateJuniorTitle(jobTitle) {
-  if (jobTitle.toLowerCase().includes('senior')) {
-    return jobTitle.replace(/senior/i, '');
-  }
-  if (jobTitle.toLowerCase().includes('lead')) {
-    return jobTitle.replace(/lead/i, '');
-  }
-  return `Junior ${jobTitle}`;
-}
-
-// Helper function to generate a relevant task based on job title
-function generateRelevantTask(jobTitle, index) {
-  const lowercaseTitle = jobTitle.toLowerCase();
-  
-  // Software/IT related tasks
-  if (lowercaseTitle.includes('software') || lowercaseTitle.includes('developer') || lowercaseTitle.includes('engineer')) {
-    const tasks = [
-      "optimizing code efficiency resulting in 30% faster load times",
-      "developing and implementing new features that increased user engagement by 25%",
-      "reducing bug reports by 40% through improved testing procedures",
-      "the development of RESTful APIs and microservices architecture",
-      "implementing continuous integration and deployment pipelines",
-      "projects that improved application performance and user experience"
-    ];
-    return tasks[index % tasks.length];
-  }
-  
-  // Marketing related tasks
-  if (lowercaseTitle.includes('market') || lowercaseTitle.includes('brand')) {
-    const tasks = [
-      "creating campaigns that increased conversion rates by 35%",
-      "managing social media strategies that grew engagement by 40%",
-      "implementing SEO optimizations that improved organic traffic by 55%",
-      "content creation and distribution across multiple channels",
-      "analyzing market trends and competitor activities",
-      "campaigns that successfully positioned the company in new markets"
-    ];
-    return tasks[index % tasks.length];
-  }
-  
-  // Management related tasks
-  if (lowercaseTitle.includes('manager') || lowercaseTitle.includes('director')) {
-    const tasks = [
-      "leading teams to exceed quarterly targets by 25%",
-      "implementing process improvements that increased efficiency by 30%",
-      "reducing operational costs by 20% while maintaining quality",
-      "strategic planning and resource allocation",
-      "mentoring team members and improving employee retention",
-      "cross-departmental initiatives that improved organizational effectiveness"
-    ];
-    return tasks[index % tasks.length];
-  }
-  
-  // Generic tasks for any position
-  const genericTasks = [
-    "initiatives that increased efficiency by 30%",
-    "implementing strategies that drove 25% growth in key metrics",
-    "optimizing processes resulting in 20% cost reduction",
-    "projects that aligned with company objectives and vision",
-    "identifying and solving complex problems within deadlines",
-    "innovative solutions that addressed critical business needs"
-  ];
-  
-  return genericTasks[index % genericTasks.length];
-}
-
-// Helper function to generate a company name based on job title and industry
-function generateCompanyName(jobTitle, targetIndustry, isSecond = false) {
-  const lowercaseTitle = jobTitle.toLowerCase();
-  const lowercaseIndustry = (targetIndustry || '').toLowerCase();
-  
-  let prefix = '';
-  
-  if (lowercaseTitle.includes('software') || lowercaseTitle.includes('developer') || lowercaseTitle.includes('engineer')) {
-    prefix = isSecond ? 'Innovate' : 'Tech';
-  } else if (lowercaseTitle.includes('market') || lowercaseTitle.includes('brand')) {
-    prefix = isSecond ? 'Brand' : 'Media';
-  } else if (lowercaseTitle.includes('manager') || lowercaseTitle.includes('director')) {
-    prefix = isSecond ? 'Strategic' : 'Global';
-  } else {
-    prefix = isSecond ? 'Premier' : 'Advanced';
-  }
-  
-  let suffix = '';
-  
-  if (lowercaseIndustry.includes('tech') || lowercaseIndustry.includes('software')) {
-    suffix = isSecond ? 'Technologies' : 'Systems';
-  } else if (lowercaseIndustry.includes('health') || lowercaseIndustry.includes('medical')) {
-    suffix = isSecond ? 'Health' : 'Medical';
-  } else if (lowercaseIndustry.includes('finance') || lowercaseIndustry.includes('bank')) {
-    suffix = isSecond ? 'Financial' : 'Capital';
-  } else if (lowercaseIndustry.includes('edu') || lowercaseIndustry.includes('learn')) {
-    suffix = isSecond ? 'Learning' : 'Education';
-  } else {
-    suffix = isSecond ? 'Solutions' : 'Innovations';
-  }
-  
-  return `${prefix} ${suffix}`;
-}
-
-// Helper function to generate default degree based on job title
-function generateDefaultDegree(jobTitle) {
-  const lowercaseTitle = jobTitle.toLowerCase();
-  
-  if (lowercaseTitle.includes('software') || lowercaseTitle.includes('developer') || lowercaseTitle.includes('engineer')) {
-    return 'Bachelor of Science';
-  } else if (lowercaseTitle.includes('market') || lowercaseTitle.includes('brand')) {
-    return 'Bachelor of Arts';
-  } else if (lowercaseTitle.includes('manager') || lowercaseTitle.includes('director')) {
-    return 'Master of Business Administration';
-  }
-  
-  return 'Bachelor of Science';
-}
-
-// Helper function to generate default field of study based on job title
-function generateDefaultField(jobTitle) {
-  const lowercaseTitle = jobTitle.toLowerCase();
-  
-  if (lowercaseTitle.includes('software') || lowercaseTitle.includes('developer')) {
-    return 'Computer Science';
-  } else if (lowercaseTitle.includes('data')) {
-    return 'Data Science';
-  } else if (lowercaseTitle.includes('engineer')) {
-    return 'Engineering';
-  } else if (lowercaseTitle.includes('market')) {
-    return 'Marketing';
-  } else if (lowercaseTitle.includes('brand')) {
-    return 'Communication';
-  } else if (lowercaseTitle.includes('manager') || lowercaseTitle.includes('director')) {
-    return 'Business Administration';
-  } else if (lowercaseTitle.includes('design')) {
-    return 'Design';
-  }
-  
-  return 'Business';
-}
-
-// Helper function to generate default skills based on job title
 function generateDefaultSkills(jobTitle, targetIndustry) {
   const lowercaseTitle = jobTitle.toLowerCase();
   const skills = [];
@@ -860,7 +834,6 @@ function generateDefaultSkills(jobTitle, targetIndustry) {
   return [...new Set(skills)].slice(0, 10);
 }
 
-// Helper function to generate responsibilities based on job title
 function generateResponsibilities(jobTitle) {
   const lowercaseTitle = jobTitle.toLowerCase();
   const responsibilities = [];
