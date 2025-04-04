@@ -182,6 +182,8 @@ function Footer() {
               </ListItem>
             </List>
           </Grid>
+
+ 
           
           <Grid item xs={12} md={4} sx={{ transition: 'transform 0.3s', '&:hover': { transform: 'translateY(-5px)' } }}>
             <Typography variant="h6" fontWeight="medium" sx={{ mb: 2 }}>
@@ -238,8 +240,43 @@ function Footer() {
               </IconButton>
             </Stack>
           </Grid>
+
+                    <Grid item xs={12} md={4} sx={{ transition: 'transform 0.3s', '&:hover': { transform: 'translateY(-5px)' } }}>
+            <Typography variant="h6" fontWeight="medium" sx={{ mb: 2 }}>
+              Student Information
+            </Typography>
+            <Divider sx={{ mb: 2, borderColor: 'grey.700', width: '40px' }} />
+            <Stack spacing={2}>
+              {/* First Entry */}
+              <Box sx={{ display: 'flex', alignItems: 'center', color: 'grey.300' }}>
+                <Typography variant="subtitle2" sx={{ color: '#90caf9', width: '100px' }}>Student 1:</Typography>
+                <Box>
+                  <Typography variant="body2">Pankaj Yadav | Reg: 12312698 | Roll number: A34 </Typography>
+                </Box>
+              </Box>
+          
+              {/* Second Entry */}
+              <Box sx={{ display: 'flex', alignItems: 'center', color: 'grey.300' }}>
+                <Typography variant="subtitle2" sx={{ color: '#90caf9', width: '100px' }}>Student 2:</Typography>
+                <Box>
+                  <Typography variant="body2"> Sachin Burnwal  | Reg: 12309834  </Typography>
+                </Box>
+              </Box>
+          
+              {/* Third Entry */}
+              <Box sx={{ display: 'flex', alignItems: 'center', color: 'grey.300' }}>
+                <Typography variant="subtitle2" sx={{ color: '#90caf9', width: '100px' }}>Student 3:</Typography>
+                <Box>
+                  <Typography variant="body2"> Manish Kalwani | Reg: 12300717 </Typography>
+                </Box>
+              </Box>
+            </Stack>
+          </Grid>
         </Grid>
         
+                
+
+
         <Divider sx={{ mt: 4, mb: 3, borderColor: 'grey.700' }} />
         
         <Box sx={{ textAlign: 'center' }}>

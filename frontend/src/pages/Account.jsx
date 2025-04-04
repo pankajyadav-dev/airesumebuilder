@@ -66,7 +66,6 @@ function Account() {
   return (
     <ThemeProvider theme={theme}>
       <Box sx={{ minHeight: '100vh', bgcolor: 'grey.50' }}>
-        <Navbar />
         
         <Container maxWidth="lg" sx={{ py: 4 }}>
           <Paper elevation={2} sx={{ borderRadius: 2, overflow: 'hidden' }}>

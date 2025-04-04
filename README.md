@@ -53,10 +53,10 @@ An advanced web application that allows users to create professional resumes eff
 
 4. Create a `.env.local` file in the backend directory with the following variables:
    ```
-   GEMINI_API_KEY=AIzaSyDZCTMU4v0qQRK11ilgF3LfLcUsj7Oppno
-   EMAIL_USER=siri963690@gmail.com
-   EMAIL_PASSWORD=npso otex mvuk cbhe
-   MONGODB_URI=mongodb+srv://siri963690:9636902439%40Siri@cluster111.ka2ei.mongodb.net/resumebuilder?retryWrites=true&w=majority&appName=Cluster111
+   GEMINI_API_KEY=************************************
+   EMAIL_USER=*********************
+   EMAIL_PASSWORD=***************
+   MONGODB_URI=**********************************
 
    ```
 
@@ -78,18 +78,7 @@ An advanced web application that allows users to create professional resumes eff
    - Frontend: http://localhost:5173 or http://127.0.0.1:5173
    - Backend API: http://localhost:3000
 
-## Troubleshooting
 
-### CORS Issues
-If you encounter CORS errors:
-- Make sure both frontend and backend servers are running
-- Check that the frontend URL is correctly set in the CORS middleware
-- Ensure cookies are being properly set with the correct domain
-
-### Connection Issues
-If you see "Connection Refused" errors:
-- Verify that the backend server is running on port 3000
-- Check that the frontend is correctly configured to connect to the backend
 - Make sure there are no firewall or network issues blocking the connection
 
 ## Usage
@@ -103,29 +92,5 @@ If you see "Connection Refused" errors:
 5. **Analyze & Improve**: Check your resume for ATS compatibility, grammar, and originality
 6. **Save & Export**: Save your resume for future editing
 
-## Project Structure
 
-```
-resumebuilder/
-├── frontend/                # React frontend (Vite)
-│   ├── public/              # Static assets
-│   └── src/
-│       ├── components/      # Reusable UI components
-│       ├── context/         # React context providers
-│       ├── pages/           # Page components
-│       ├── services/        # API services
-│       └── utils/           # Helper functions
-│
-└── backend/                 # Next.js backend
-    ├── public/
-    └── src/
-        ├── app/
-        │   └── api/         # API routes
-        ├── lib/             # Library code
-        ├── middleware/      # Request middleware
-        └── models/          # MongoDB models
-```
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details. 

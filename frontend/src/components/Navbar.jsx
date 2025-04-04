@@ -317,7 +317,7 @@ function Navbar() {
                         Logout
                       </MenuItem>
                     </Menu>
-                    
+{/*                     
                     <Button
                       variant="contained"
                       color="primary"
@@ -325,7 +325,7 @@ function Navbar() {
                       onClick={handleLogout}
                     >
                       Logout
-                    </Button>
+                    </Button> */}
                   </>
                 ) : (
                   <Box sx={{ display: { xs: 'none', md: 'flex' } }}>
