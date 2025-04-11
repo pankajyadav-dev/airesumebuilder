@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import ShareEmailModal from '../components/ShareResume';
-import { 
+import ShareEmailModal from '../components/ShareResume/ShareEmailModal';import { 
   Button, 
   Box, 
   Typography, 
@@ -85,8 +84,17 @@ function Dashboard() {
   };
 
   const handleShareResume = (resume) => {
+    if (!resume) {
+      setError('No resume selected for sharing');
+      return;
+    }
     setSelectedResumeForSharing(resume);
     setShowShareEmailModal(true);
+  };
+
+  const handleCloseShareModal = () => {
+    setShowShareEmailModal(false);
+    setSelectedResumeForSharing(null);
   };
 
   const handleDownloadDocument = async (resumeId, resumeTitle) => {
@@ -351,10 +359,11 @@ function Dashboard() {
         {/* Share Email Modal */}
         {selectedResumeForSharing && (
           <ShareEmailModal 
-            isOpen={showShareEmailModal}
-            onClose={() => setShowShareEmailModal(false)}
-            resumeId={selectedResumeForSharing._id}
-            resumeTitle={selectedResumeForSharing.title}
+            open={showShareEmailModal}
+            onClose={handleCloseShareModal}
+            resumeId={selectedResumeForSharing?._id || ''}
+            resumeTitle={selectedResumeForSharing?.title || ''}
+            template="professional"
           />
         )}
       </Box>
@@ -362,4 +371,4 @@ function Dashboard() {
   );
 }
 
-export default Dashboard; 
+export default Dashboard;

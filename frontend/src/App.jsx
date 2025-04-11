@@ -80,27 +80,22 @@ const theme = createTheme({
   },
 });
 
-// Set default axios base URL
 // axios.defaults.baseURL = 'http://localhost:3000';
 axios.defaults.baseURL = 'https://airesumebuilder-alpha.vercel.app/';
 axios.defaults.withCredentials = true;
 
-// Add request interceptor to include credentials and handle CORS
 axios.interceptors.request.use(
   config => {
-    // Ensure credentials are included
+
     config.withCredentials = true;
-    
-    // Add CORS headers
+
     config.headers['Content-Type'] = 'application/json';
-    
-    // Add token from localStorage if available
+
     const token = localStorage.getItem('token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
-    
-    // Log requests for debugging
+
     console.log(`Making ${config.method.toUpperCase()} request to ${config.url}`);
     
     return config;
@@ -110,24 +105,18 @@ axios.interceptors.request.use(
   }
 );
 
-// Add a response interceptor to handle common errors
 axios.interceptors.response.use(
   response => {
-    // Log successful responses for debugging
     console.log(`Response from ${response.config.url}:`, response.status);
     return response;
   },
   error => {
-    // Log all errors for debugging
     console.error('API Error:', error);
     
-    // Handle authentication errors
     if (error.response && error.response.status === 401) {
       console.log('Authentication error - redirecting to login');
-      // We'll let the ProtectedRoute component handle the redirect
     }
     
-    // Handle CORS errors
     if (error.message === 'Network Error') {
       console.error('CORS or network error detected');
     }

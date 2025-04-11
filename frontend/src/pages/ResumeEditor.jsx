@@ -56,7 +56,7 @@ function ResumeEditor() {
   const { user } = useAuth();
   const editorRef = useRef(null);
   const resizeRef = useRef(null);
-  
+  const [additionalInstruction, setAdditionalInstruction] = useState('');
   const [title, setTitle] = useState('Untitled Resume');
   const [content, setContent] = useState('');
   const [template, setTemplate] = useState('professional');
@@ -239,12 +239,21 @@ function ResumeEditor() {
         return;
       }
       
+      // Get latest content from editor
+      let latestContent = content;
+      if (editorRef.current) {
+        latestContent = editorRef.current.getContent();
+        setContent(latestContent);
+      }
+      
       try {
         const response = await axios.post('/api/ai/generate-resume', {
           jobTitle,
           targetCompany,
           targetIndustry,
-          template // Pass the current template to the API
+          template,
+          currentContent: latestContent, // Send current editor content
+          additionalInstruction // Send additional instructions
         });
         
         setContent(response.data.content);
@@ -1818,6 +1827,27 @@ function ResumeEditor() {
                 />
 
                 <Divider sx={{ my: 1 }} />
+                <TextField
+                  fullWidth
+                  label="Additional Instructions"
+                  value={additionalInstruction}
+                  onChange={(e) => setAdditionalInstruction(e.target.value)}
+                  size="small"
+                  variant="outlined"
+                  multiline
+                  rows={3}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <InfoIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{ mb: 1 }}
+                  placeholder="E.g., Emphasize leadership skills, include specific certifications, or focus on technical expertise"
+                />
+
+  <Divider sx={{ my: 1 }} />
 
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                   AI Resume Generator

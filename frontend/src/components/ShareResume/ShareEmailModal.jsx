@@ -145,16 +145,7 @@ const ShareEmailModal = ({ open, onClose, resumeId, resumeTitle, template = 'pro
         </Box>
         
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Chip
-            size="small"
-            label={`${template.charAt(0).toUpperCase() + template.slice(1)} Format`}
-            color={
-              template === 'professional' ? 'default' : 
-              template === 'creative' ? 'secondary' : 
-              'primary'
-            }
-            icon={<DescriptionIcon fontSize="small" />}
-          />
+          
           <IconButton 
             size="small"
             onClick={onClose} 

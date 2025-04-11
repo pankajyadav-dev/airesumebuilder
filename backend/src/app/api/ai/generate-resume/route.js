@@ -17,7 +17,15 @@ async function generateResumeHandler(request) {
       );
     }
     
-    const { jobTitle, targetCompany, targetIndustry, template = 'professional' } = await request.json();
+    // Updated to include currentContent and additionalInstruction
+    const { 
+      jobTitle, 
+      targetCompany, 
+      targetIndustry, 
+      template = 'professional', 
+      currentContent = '', 
+      additionalInstruction = '' 
+    } = await request.json();
     
     if (!jobTitle) {
       console.log('AI Resume API: Job title missing');
@@ -47,7 +55,19 @@ async function generateResumeHandler(request) {
     if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'your_gemini_api_key') {
       console.log('AI Resume API: Using mock response (no API key)');
       
-      const mockHtmlContent = generateDefaultResumeContent(user, jobTitle, targetCompany, targetIndustry, hasProfile, hasExperience, hasEducation, hasSkills, template);
+      const mockHtmlContent = generateDefaultResumeContent(
+        user, 
+        jobTitle, 
+        targetCompany, 
+        targetIndustry, 
+        hasProfile, 
+        hasExperience, 
+        hasEducation, 
+        hasSkills, 
+        template,
+        currentContent, // Pass currentContent to fallback
+        additionalInstruction // Pass additionalInstruction to fallback
+      );
       
       return NextResponse.json({
         success: true,
@@ -71,39 +91,27 @@ async function generateResumeHandler(request) {
       summary: generateDefaultSummary(user.name, jobTitle, targetCompany, targetIndustry, hasProfile)
     };
 
-    const prompt = constructResumePrompt(userData, jobTitle, targetCompany, targetIndustry, template);
+    const prompt = constructResumePrompt(
+      userData, 
+      jobTitle, 
+      targetCompany, 
+      targetIndustry, 
+      template,
+      currentContent, // Pass currentContent to prompt constructor
+      additionalInstruction // Pass additionalInstruction to prompt constructor
+    );
     
     try {
-
-
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
       const model = genAI.getGenerativeModel({ 
         model: "gemini-2.0-flash",
         generationConfig: {
-          temperature: 0.3,
+          temperature: 0.7,
           topP: 0.9,
           topK: 40,
           maxOutputTokens: 4096,
-        },
-        safetySettings: [
-          {
-            category: "HARM_CATEGORY_HARASSMENT",
-            threshold: "BLOCK_ONLY_HIGH"
-          },
-          {
-            category: "HARM_CATEGORY_HATE_SPEECH",
-            threshold: "BLOCK_ONLY_HIGH"
-          },
-          {
-            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            threshold: "BLOCK_ONLY_HIGH"
-          },
-          {
-            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-            threshold: "BLOCK_ONLY_HIGH"
-          }
-        ]
+        }
       });
       
       console.log('AI Resume API: Sending request to Gemini API');
@@ -115,12 +123,10 @@ async function generateResumeHandler(request) {
       
       while (attempts < maxAttempts) {
         try {
-
           result = await model.generateContent(prompt);
           const response = await result.response;
           generatedContent = response.text();
           
-
           if (generatedContent && generatedContent.length > 0) {
             break;
           }
@@ -128,7 +134,6 @@ async function generateResumeHandler(request) {
           attempts++;
           console.log(`AI Resume API: Empty response, retrying (${attempts}/${maxAttempts})`);
           
-
           await new Promise(resolve => setTimeout(resolve, 1000));
         } catch (err) {
           attempts++;
@@ -138,26 +143,21 @@ async function generateResumeHandler(request) {
             throw err; 
           }
           
- 
           await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
         }
       }
       
-
       generatedContent = generatedContent.replace(/```html|```/g, '').trim();
       
-
       if (!generatedContent.trim().startsWith('<div') && !generatedContent.trim().startsWith('<html')) {
         generatedContent = `<div>${generatedContent}</div>`;
       }
       
-
       const htmlMatch = generatedContent.match(/<div[\s\S]*<\/div>/);
       if (htmlMatch) {
         generatedContent = htmlMatch[0];
       }
       
-
       generatedContent = fixHtmlIssues(generatedContent);
       
       console.log('AI Resume API: Successfully generated content');
@@ -168,8 +168,19 @@ async function generateResumeHandler(request) {
     } catch (apiError) {
       console.error('AI Resume API: Gemini API error:', apiError.message);
       
-
-      const fallbackContent = generateDefaultResumeContent(user, jobTitle, targetCompany, targetIndustry, hasProfile, hasExperience, hasEducation, hasSkills, template);
+      const fallbackContent = generateDefaultResumeContent(
+        user, 
+        jobTitle, 
+        targetCompany, 
+        targetIndustry, 
+        hasProfile, 
+        hasExperience, 
+        hasEducation, 
+        hasSkills, 
+        template,
+        currentContent, // Pass currentContent to fallback
+        additionalInstruction // Pass additionalInstruction to fallback
+      );
       
       return NextResponse.json({
         success: true,
@@ -186,7 +197,489 @@ async function generateResumeHandler(request) {
   }
 }
 
+// Update function signatures to include new parameters
+function generateDefaultResumeContent(
+  user, 
+  jobTitle, 
+  targetCompany, 
+  targetIndustry, 
+  hasProfile, 
+  hasExperience, 
+  hasEducation, 
+  hasSkills, 
+  template = 'professional',
+  currentContent = '', // New parameter
+  additionalInstruction = '' // New parameter
+) {
+  const defaultSkills = generateDefaultSkills(jobTitle, targetIndustry);
+  
+  const name = user.name || 'Your Name';
+  const email = user.email || 'your.email@example.com';
+  const phone = hasProfile.personalDetails?.phone || '(123) 456-7890';
+  const location = hasProfile.personalDetails?.address || 'City, State';
+  
+  const skillsList = hasSkills && hasProfile.skills.length > 0 
+    ? hasProfile.skills 
+    : defaultSkills;
+  
+  // If currentContent exists, try to extract relevant information to enhance the resume
+  let enhancedSummary = generateDefaultSummary(name, jobTitle, targetCompany, targetIndustry, hasProfile);
+  let enhancedExperiences = hasExperience && hasProfile.experience && hasProfile.experience.length > 0
+    ? hasProfile.experience.map(exp => ({
+        title: exp.position,
+        company: exp.company,
+        startDate: new Date(exp.startDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}),
+        endDate: exp.endDate ? new Date(exp.endDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}) : 'Present',
+        description: exp.description || generateResponsibilities(jobTitle).join(' ')
+      }))
+    : [
+        {
+          title: jobTitle,
+          company: generateCompanyName(jobTitle, targetIndustry),
+          startDate: 'Jan 2020',
+          endDate: 'Present',
+          description: generateResponsibilities(jobTitle).join(' ')
+        },
+        {
+          title: generateJuniorTitle(jobTitle),
+          company: generateCompanyName(jobTitle, targetIndustry, true),
+          startDate: 'Jun 2017',
+          endDate: 'Dec 2019',
+          description: [
+            generateRelevantTask(jobTitle, 0),
+            generateRelevantTask(jobTitle, 1),
+            generateRelevantTask(jobTitle, 2)
+          ].join(' ')
+        }
+      ];
 
+  // If additionalInstruction exists, modify the summary to reflect it
+  if (additionalInstruction) {
+    enhancedSummary += ` Tailored to focus on: ${additionalInstruction}.`;
+  }
+
+  // If currentContent exists, try to incorporate relevant details
+  if (currentContent) {
+    try {
+      // Extract skills from current content (simple regex for demo purposes)
+      const skillsMatch = currentContent.match(/<li[^>]*>(.*?)<\/li>/g) || [];
+      const extractedSkills = skillsMatch
+        .map(skill => skill.replace(/<\/?li[^>]*>/g, '').trim())
+        .filter(skill => skill && !skill.includes('Company') && !skill.includes('Present'));
+      
+      if (extractedSkills.length > 0) {
+        skillsList.push(...extractedSkills.slice(0, 5)); // Add up to 5 extracted skills
+        skillsList = [...new Set(skillsList)]; // Remove duplicates
+      }
+
+      // Extract experience titles or companies if possible
+      const titleMatch = currentContent.match(/<h3[^>]*>(.*?)<\/h3>/g) || [];
+      const extractedTitles = titleMatch
+        .map(title => title.replace(/<\/?h3[^>]*>/g, '').trim())
+        .filter(title => title && !title.includes(name));
+      
+      if (extractedTitles.length > 0) {
+        enhancedExperiences = enhancedExperiences.map((exp, index) => ({
+          ...exp,
+          title: extractedTitles[index] || exp.title
+        }));
+      }
+    } catch (err) {
+      console.error('AI Resume API: Error parsing currentContent:', err.message);
+    }
+  }
+
+  const education = hasEducation && hasProfile.education && hasProfile.education.length > 0
+    ? hasProfile.education.map(edu => ({
+        degree: edu.degree,
+        field: edu.field,
+        institution: edu.institution,
+        startDate: new Date(edu.startDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}),
+        endDate: edu.endDate ? new Date(edu.endDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}) : 'Present'
+      }))
+    : [
+        {
+          degree: generateDefaultDegree(jobTitle),
+          field: generateDefaultField(jobTitle),
+          institution: 'University of ' + (targetIndustry || 'Technology'),
+          startDate: 'Sep 2013',
+          endDate: 'May 2017'
+        }
+      ];
+
+  // Professional template
+  if (template === 'professional' || !template) {
+    return `<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 30px;">
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h1 style="margin: 0; color: #333;">${name}</h1>
+        <p style="margin: 5px 0;">${email} | ${phone} | ${location}</p>
+      </div>
+      <div style="margin-bottom: 20px;">
+        <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Summary</h2>
+        <p>${enhancedSummary}</p>
+      </div>
+      <div style="margin-bottom: 20px;">
+        <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Experience</h2>
+        ${enhancedExperiences.map(exp => `
+          <div style="margin-bottom: 15px;">
+            <h3 style="margin: 0; font-size: 16px;">${exp.title}</h3>
+            <p style="margin: 0; font-style: italic;">${exp.company} | ${exp.startDate} - ${exp.endDate}</p>
+            <ul>
+              ${exp.description.split('. ').filter(s => s.trim()).map(sentence => 
+                `<li>${sentence.trim() + (sentence.endsWith('.') ? '' : '.')}</li>`
+              ).join('')}
+            </ul>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-bottom: 20px;">
+        <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Education</h2>
+        ${education.map(edu => `
+          <div>
+            <h3 style="margin: 0; font-size: 16px;">${edu.degree} in ${edu.field}</h3>
+            <p style="margin: 0; font-style: italic;">${edu.institution} | ${edu.startDate} - ${edu.endDate}</p>
+          </div>
+        `).join('')}
+      </div>
+      <div>
+        <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Skills</h2>
+        <p>${skillsList.join(', ')}</p>
+      </div>
+    </div>`;
+  } 
+  // Creative template
+  else if (template === 'creative') {
+    return `<div style="font-family: 'Roboto', sans-serif; max-width: 800px; margin: 0 auto; padding: 30px;">
+      <div style="text-align: center; margin-bottom: 25px;">
+        <div style="width: 120px; height: 120px; border-radius: 50%; background-color: #9c27b0; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
+          <h1 style="margin: 0; color: white; font-size: 48px;">${name.charAt(0)}</h1>
+        </div>
+        <h1 style="margin: 0 0 10px; color: #9c27b0; font-size: 32px;">${name}</h1>
+        <p style="margin: 5px 0; font-size: 16px; color: #666;">${email} | ${phone} | ${location}</p>
+      </div>
+      <div style="margin-bottom: 20px; text-align: center;">
+        <p style="background-color: #f3e5f5; padding: 15px; border-radius: 8px; color: #555; font-style: italic;">
+          ${enhancedSummary}
+        </p>
+      </div>
+      <div style="margin-bottom: 25px;">
+        <h2 style="font-size: 22px; color: #9c27b0; border-bottom: 2px solid #9c27b0; padding-bottom: 5px; display: inline-block;">Experience</h2>
+        ${enhancedExperiences.map(exp => `
+          <div style="margin-bottom: 15px; padding: 10px 0;">
+            <h3 style="margin: 0; font-size: 18px; color: #333;">${exp.title}</h3>
+            <p style="margin: 5px 0 10px; font-style: italic; color: #666;">${exp.company} | ${exp.startDate} - ${exp.endDate}</p>
+            <ul style="margin: 0; padding-left: 20px; color: #555;">
+              ${exp.description.split('. ').filter(s => s.trim()).map(sentence => 
+                `<li style="margin-bottom: 8px;">${sentence.trim() + (sentence.endsWith('.') ? '' : '.')}</li>`
+              ).join('')}
+            </ul>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-bottom: 25px;">
+        <h2 style="font-size: 22px; color: #9c27b0; border-bottom: 2px solid #9c27b0; padding-bottom: 5px; display: inline-block;">Education</h2>
+        ${education.map(edu => `
+          <div style="padding: 10px 0;">
+            <h3 style="margin: 0; font-size: 18px; color: #333;">${edu.degree} in ${edu.field}</h3>
+            <p style="margin: 5px 0; font-style: italic; color: #666;">${edu.institution} | ${edu.startDate} - ${edu.endDate}</p>
+          </div>
+        `).join('')}
+      </div>
+      <div style="margin-bottom: 25px;">
+        <h2 style="font-size: 22px; color: #9c27b0; border-bottom: 2px solid #9c27b0; padding-bottom: 5px; display: inline-block;">Skills</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px;">
+          ${skillsList.map(skill => 
+            `<span style="background-color: #f3e5f5; padding: 8px 15px; border-radius: 20px; color: #9c27b0; font-weight: 500;">${skill}</span>`
+          ).join('')}
+        </div>
+      </div>
+    </div>`;
+  }
+  // Modern template
+  else if (template === 'modern') {
+    return `<div style="font-family: 'Arial', sans-serif; max-width: 800px; margin: 0 auto; padding: 0;">
+      <table style="width: 100%; border-collapse: collapse; border: none;">
+        <tr>
+          <td style="width: 30%; background-color: #1976d2; color: white; padding: 30px; vertical-align: top;">
+            <h1 style="margin: 0 0 20px; font-size: 28px;">${name}</h1>
+            <p style="margin: 0 0 5px; font-size: 14px;">Email: ${email}</p>
+            <p style="margin: 0 0 5px; font-size: 14px;">Phone: ${phone}</p>
+            <p style="margin: 0 0 25px; font-size: 14px;">Location: ${location}</p>
+            
+            <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Skills</h3>
+            <ul style="margin: 0; padding-left: 20px;">
+              ${skillsList.map(skill => 
+                `<li style="margin-bottom: 8px;">${skill}</li>`
+              ).join('')}
+            </ul>
+            
+            <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Education</h3>
+            ${education.map(edu => `
+              <h4 style="margin: 0; font-size: 16px;">${edu.degree} in ${edu.field}</h4>
+              <p style="margin: 5px 0 0; font-style: italic; font-size: 14px;">${edu.institution}</p>
+              <p style="margin: 5px 0 15px; font-size: 14px;">${edu.startDate} - ${edu.endDate}</p>
+            `).join('')}
+          </td>
+          
+          <td style="width: 70%; padding: 30px; vertical-align: top;">
+            <h2 style="font-size: 20px; color: #1976d2; margin: 0 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Professional Summary</h2>
+            <p style="color: #444; line-height: 1.6;">${enhancedSummary}</p>
+            
+            <h2 style="font-size: 20px; color: #1976d2; margin: 30px 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Work Experience</h2>
+            
+            ${enhancedExperiences.map(exp => `
+              <div style="margin-bottom: 20px;">
+                <h3 style="margin: 0; font-size: 18px; color: #333;">${exp.title}</h3>
+                <p style="margin: 5px 0; font-weight: 500; color: #666;">${exp.company} | ${exp.startDate} - ${exp.endDate}</p>
+                <ul style="margin: 10px 0 0; padding-left: 20px; color: #444;">
+                  ${exp.description.split('. ').filter(s => s.trim()).map(sentence => 
+                    `<li style="margin-bottom: 8px;">${sentence.trim() + (sentence.endsWith('.') ? '' : '.')}</li>`
+                  ).join('')}
+                </ul>
+              </div>
+            `).join('')}
+          </td>
+        </tr>
+      </table>
+    </div>`;
+  }
+}
+
+// Updated constructResumePrompt to include currentContent and additionalInstruction
+function constructResumePrompt(
+  userData, 
+  jobTitle, 
+  targetCompany, 
+  targetIndustry, 
+  template = 'professional',
+  currentContent = '',
+  additionalInstruction = ''
+) {
+  const hasBasicInfo = userData.name && userData.email;
+  const hasContactInfo = userData.phone || userData.address || userData.website || userData.linkedin || userData.github;
+  const hasExperience = userData.experience && userData.experience.length > 0;
+  const hasEducation = userData.education && userData.education.length > 0;
+  const hasSkills = userData.skills && userData.skills.length > 0;
+  const hasCertifications = userData.certifications && userData.certifications.length > 0;
+  const hasAchievements = userData.achievements && userData.achievements.length > 0;
+  
+  const completenessScore = [
+    hasBasicInfo, hasContactInfo, hasExperience, hasEducation, 
+    hasSkills, hasCertifications, hasAchievements
+  ].filter(Boolean).length / 7;
+  
+  let prompt = `You are an expert resume writer with years of experience creating ATS-optimized, professional resumes. 
+Your task is to create a polished, modern HTML resume that will help the candidate stand out and pass ATS screenings.
+
+CREATE A RESUME FOR:
+A ${jobTitle} candidate`;
+  
+  if (targetCompany) {
+    prompt += ` applying to ${targetCompany}`;
+  }
+  
+  if (targetIndustry) {
+    prompt += ` in the ${targetIndustry} industry`;
+  }
+  
+  prompt += '.\n\n';
+
+  // Add template information
+  prompt += `USE THIS SPECIFIC TEMPLATE STYLE: ${template}\n`;
+  
+  // Provide specific styling guidance based on the template
+  if (template === 'professional') {
+    prompt += `
+Template style guidelines:
+- Clean, traditional format suitable for corporate environments
+- Use a neutral color palette (navy, gray, black)
+- Center the header section with name and contact info
+- Use horizontal dividers between sections
+- Use standard, readable fonts
+- Simple, elegant styling without too many design elements
+
+HTML STRUCTURE GUIDANCE:
+- Create a single-column layout with centered header 
+- Keep the design traditional and corporate
+- Content sections should be in this order: summary, experience, education, skills
+- Put name and contact info centered at the top
+- Use subtle borders or dividers between sections
+`;
+  } else if (template === 'creative') {
+    prompt += `
+Template style guidelines:
+- Modern, eye-catching design for creative fields
+- Use a distinctive color scheme with purple (#9c27b0) as primary accent color
+- Include a circular element with the person's initial in the header
+- Use distinctive section headers with color accents
+- Style skills as pill/badge elements
+- More visual spacing and modern typography
+
+HTML STRUCTURE GUIDANCE:
+- Create a circular avatar element with the person's first initial in purple (#9c27b0)
+- Center the header section with the person's name below the avatar
+- Use purple accent colors for section headers with underlines
+- Display skills as pill-shaped badges with light purple background
+- Use more white space and modern typography
+- Center the summary in a light purple box with rounded corners
+`;
+  } else if (template === 'modern') {
+    prompt += `
+Template style guidelines:
+- Contemporary two-column layout
+- Left sidebar in blue (#1976d2) with contact info, skills and education
+- Main content area on the right with summary and experience
+- Clear hierarchy with distinct section headers
+- Clean dividers and balanced spacing
+- Professional but contemporary look
+
+HTML STRUCTURE GUIDANCE:
+- Create a two-column layout with a blue sidebar
+- Put contact info, skills and education in the colored sidebar
+- Put professional summary and work experience in the main right column
+- Use blue accent colors for section headers in the main content
+- Make sure the layout is responsive and can adjust to different screen sizes
+- Use dividing lines for section headers
+`;
+  }
+
+  prompt += '\n';
+
+  // Add current resume content if provided
+  if (currentContent) {
+    prompt += `EXISTING RESUME CONTENT:
+The candidate has provided an existing resume draft. Use this as a starting point and enhance it to create a more polished, professional, and ATS-optimized version. Preserve key details from the existing content where relevant, but improve the structure, wording, and presentation to align with the ${template} template and the job requirements. If the existing content lacks specific details, supplement it with realistic and impressive information appropriate for a ${jobTitle} role${targetIndustry ? ` in the ${targetIndustry} industry` : ''}.
+
+Existing Content:
+${currentContent}
+
+INSTRUCTIONS FOR USING EXISTING CONTENT:
+- Extract and retain factual details such as job titles, company names, dates, and specific achievements
+- Rewrite descriptions to be more concise, impactful, and ATS-friendly
+- Reorganize content to fit the ${template} template structure
+- Enhance weak or vague descriptions with quantifiable achievements
+- Remove any redundant or irrelevant information
+- Ensure the tone and style match the target job and industry
+\n\n`;
+  }
+  
+  // Add additional instructions if provided
+  if (additionalInstruction) {
+    prompt += `ADDITIONAL INSTRUCTIONS:
+The candidate has provided specific guidance for the resume. Incorporate these instructions into the resume content, ensuring they are reflected in the summary, experience descriptions, skills, or other relevant sections as appropriate.
+
+Additional Instructions: ${additionalInstruction}
+
+INSTRUCTIONS FOR USING ADDITIONAL INSTRUCTIONS:
+- If the instructions request emphasizing specific skills, highlight those skills prominently
+- If the instructions mention focusing on certain experiences or achievements, tailor the content to prioritize those
+- If the instructions specify a tone or style, adjust the language accordingly
+- Ensure the additional instructions are seamlessly integrated without contradicting the job requirements or template style
+\n\n`;
+  }
+  
+  if (completenessScore < 0.5 && !currentContent) {
+    prompt += `SPECIAL INSTRUCTION: This candidate has provided limited information. Please generate appropriate 
+professional experiences, education, and skills that would be typical and impressive for a ${jobTitle} 
+${targetIndustry ? `in the ${targetIndustry} industry` : ''}. Make it realistic but impressive.\n\n`;
+  }
+  
+  prompt += 'CANDIDATE INFORMATION:\n';
+  prompt += `Name: ${userData.name}\n`;
+  prompt += `Email: ${userData.email}\n`;
+  if (userData.phone) prompt += `Phone: ${userData.phone}\n`;
+  if (userData.address) prompt += `Location: ${userData.address}\n`;
+  if (userData.website) prompt += `Website: ${userData.website}\n`;
+  if (userData.linkedin) prompt += `LinkedIn: ${userData.linkedin}\n`;
+  if (userData.github) prompt += `GitHub: ${userData.github}\n`;
+  
+  prompt += '\nPROFESSIONAL SUMMARY:\n';
+  prompt += userData.summary + '\n';
+  
+  prompt += '\nWORK EXPERIENCE:\n';
+  if (hasExperience) {
+    userData.experience.forEach(exp => {
+      prompt += `Position: ${exp.position}\n`;
+      prompt += `Company: ${exp.company}\n`;
+      prompt += `Duration: ${exp.startDate} - ${exp.endDate}\n`;
+      if (exp.description) prompt += `Description: ${exp.description}\n`;
+      prompt += '\n';
+    });
+  } else {
+    prompt += `IF No experience provided. Please generate 2-3 relevant work experiences for a ${jobTitle} role`;
+    if (targetIndustry) prompt += ` in the ${targetIndustry} industry`;
+    prompt += `. Make the experiences realistic, impressive, and include quantifiable achievements. Ensure job titles, company names, and dates are appropriate.\n`;
+  }
+  
+  prompt += '\nEDUCATION:\n';
+  if (hasEducation) {
+    userData.education.forEach(edu => {
+      prompt += `Degree: ${edu.degree} in ${edu.field}\n`;
+      prompt += `Institution: ${edu.institution}\n`;
+      prompt += `Duration: ${edu.startDate} - ${edu.endDate}\n`;
+      if (edu.description) prompt += `Description: ${edu.description}\n`;
+      prompt += '\n';
+    });
+  } else {
+    prompt += `No education provided. Please generate an appropriate educational background for a ${jobTitle} role`;
+    if (targetIndustry) prompt += ` in the ${targetIndustry} industry`;
+    prompt += `. Include relevant degree, field of study, institution, and dates.\n`;
+  }
+  
+  prompt += '\nSKILLS:\n';
+  if (hasSkills) {
+    prompt += userData.skills.join(', ') + '\n';
+  } else {
+    prompt += `No skills provided. Please generate 8-12 relevant technical and soft skills for a ${jobTitle} role`;
+    if (targetIndustry) prompt += ` in the ${targetIndustry} industry`;
+    prompt += `. Include a mix of hard and soft skills that would impress recruiters and pass ATS systems.\n`;
+  }
+  
+  if (hasCertifications) {
+    prompt += '\nCERTIFICATIONS:\n';
+    userData.certifications.forEach(cert => {
+      prompt += `${cert.name} from ${cert.issuer} (${new Date(cert.date).getFullYear()})\n`;
+    });
+  } else if (targetIndustry || jobTitle) {
+    prompt += '\nCERTIFICATIONS:\n';
+    prompt += `No certifications provided. If appropriate for a ${jobTitle} role`;
+    if (targetIndustry) prompt += ` in the ${targetIndustry} industry`;
+    prompt += `, please include 1-2 relevant industry certifications.\n`;
+  }
+  
+  if (hasAchievements) {
+    prompt += '\nACHIEVEMENTS:\n';
+    userData.achievements.forEach(achievement => {
+      prompt += `- ${achievement}\n`;
+    });
+  }
+  
+  prompt += `\nATS OPTIMIZATION:
+1. Include job-specific keywords for ${jobTitle} positions
+2. Use industry-standard section headings and formatting
+3. Avoid tables, images, headers, footers, or complex layouts
+4. Include relevant ${targetIndustry || "industry"} terminology
+5. Use measurable achievements and quantified results`;
+  
+  prompt += `\n\nHTML FORMATTING INSTRUCTIONS:
+1. Create clean, semantic HTML with inline CSS only
+2. Use a professional single-column layout optimized for ATS systems
+3. Use a modern, professional color scheme with subtle accents (preferably blue/navy/gray tones)
+4. Ensure proper spacing and typography for readability
+5. Use appropriate heading hierarchy (h1, h2, h3)
+6. Create a balanced design with proper visual hierarchy
+7. Include only the HTML content for the resume (no <html>, <head> or <doctype> tags)
+8. Start the HTML with a single root <div> element containing the entire resume
+9. Use bullet points for listing experiences, skills, and achievements
+10. Format dates, job titles, and company names consistently
+11. If creating experiences from scratch, include realistic metrics and achievements with numbers
+
+RESPONSE FORMAT: Respond with ONLY the HTML resume content, nothing else - no explanations, no markdown formatting, just the raw HTML. If any section has weak or incomplete descriptions, enhance the content to make it more compelling and relevant for a ${jobTitle} role. If user data is limited, supplement it with realistic and impressive details tailored to the job and industry. Ensure the resume is complete, attractive, and optimized for both human readers and ATS systems.`;
+
+  return prompt;
+}
+
+// Existing helper functions remain unchanged
 function formatExperienceForPrompt(experience) {
   return experience.map(exp => ({
     company: exp.company,
@@ -196,7 +689,6 @@ function formatExperienceForPrompt(experience) {
     description: exp.description || ''
   }));
 }
-
 
 function formatEducationForPrompt(education) {
   return education.map(edu => ({
@@ -216,7 +708,6 @@ function generateDefaultSummary(name, jobTitle, targetCompany, targetIndustry, p
   const randomQuality1 = qualities[0];
   const randomQuality2 = qualities[1];
   
-
   const verbs = getJobActionVerbs(jobTitle);
   const randomVerb = verbs[Math.floor(Math.random() * verbs.length)];
 
@@ -381,198 +872,6 @@ function shuffleArray(array) {
   return newArray;
 }
 
-function constructResumePrompt(userData, jobTitle, targetCompany, targetIndustry, template = 'professional') {
-  const hasBasicInfo = userData.name && userData.email;
-  const hasContactInfo = userData.phone || userData.address || userData.website || userData.linkedin || userData.github;
-  const hasExperience = userData.experience && userData.experience.length > 0;
-  const hasEducation = userData.education && userData.education.length > 0;
-  const hasSkills = userData.skills && userData.skills.length > 0;
-  const hasCertifications = userData.certifications && userData.certifications.length > 0;
-  const hasAchievements = userData.achievements && userData.achievements.length > 0;
-  
-  const completenessScore = [
-    hasBasicInfo, hasContactInfo, hasExperience, hasEducation, 
-    hasSkills, hasCertifications, hasAchievements
-  ].filter(Boolean).length / 7;
-  
-  let prompt = `You are an expert resume writer with years of experience creating ATS-optimized, professional resumes. 
-Your task is to create a polished, modern HTML resume that will help the candidate stand out and pass ATS screenings.
-
-CREATE A RESUME FOR:
-A ${jobTitle} candidate`;
-  
-  if (targetCompany) {
-    prompt += ` applying to ${targetCompany}`;
-  }
-  
-  if (targetIndustry) {
-    prompt += ` in the ${targetIndustry} industry`;
-  }
-  
-  prompt += '.\n\n';
-
-  // Add template information
-  prompt += `USE THIS SPECIFIC TEMPLATE STYLE: ${template}\n`;
-  
-  // Provide specific styling guidance based on the template
-  if (template === 'professional') {
-    prompt += `
-Template style guidelines:
-- Clean, traditional format suitable for corporate environments
-- Use a neutral color palette (navy, gray, black)
-- Center the header section with name and contact info
-- Use horizontal dividers between sections
-- Use standard, readable fonts
-- Simple, elegant styling without too many design elements
-
-HTML STRUCTURE GUIDANCE:
-- Create a single-column layout with centered header 
-- Keep the design traditional and corporate
-- Content sections should be in this order: summary, experience, education, skills
-- Put name and contact info centered at the top
-- Use subtle borders or dividers between sections
-`;
-  } else if (template === 'creative') {
-    prompt += `
-Template style guidelines:
-- Modern, eye-catching design for creative fields
-- Use a distinctive color scheme with purple (#9c27b0) as primary accent color
-- Include a circular element with the person's initial in the header
-- Use distinctive section headers with color accents
-- Style skills as pill/badge elements
-- More visual spacing and modern typography
-
-HTML STRUCTURE GUIDANCE:
-- Create a circular avatar element with the person's first initial in purple (#9c27b0)
-- Center the header section with the person's name below the avatar
-- Use purple accent colors for section headers with underlines
-- Display skills as pill-shaped badges with light purple background
-- Use more white space and modern typography
-- Center the summary in a light purple box with rounded corners
-`;
-  } else if (template === 'modern') {
-    prompt += `
-Template style guidelines:
-- Contemporary two-column layout
-- Left sidebar in blue (#1976d2) with contact info, skills and education
-- Main content area on the right with summary and experience
-- Clear hierarchy with distinct section headers
-- Clean dividers and balanced spacing
-- Professional but contemporary look
-
-HTML STRUCTURE GUIDANCE:
-- Create a two-column layout with a blue sidebar
-- Put contact info, skills and education in the colored sidebar
-- Put professional summary and work experience in the main right column
-- Use blue accent colors for section headers in the main content
-- Make sure the layout is responsive and can adjust to different screen sizes
-- Use dividing lines for section headers
-`;
-  }
-
-  prompt += '\n';
-  
-  if (completenessScore < 0.5) {
-    prompt += `SPECIAL INSTRUCTION: This candidate has provided limited information. Please generate appropriate 
-professional experiences, education, and skills that would be typical and impressive for a ${jobTitle} 
-${targetIndustry ? `in the ${targetIndustry} industry` : ''}. Make it realistic but impressive.\n\n`;
-  }
-  
-  prompt += 'CANDIDATE INFORMATION:\n';
-  prompt += `Name: ${userData.name}\n`;
-  prompt += `Email: ${userData.email}\n`;
-  if (userData.phone) prompt += `Phone: ${userData.phone}\n`;
-  if (userData.address) prompt += `Location: ${userData.address}\n`;
-  if (userData.website) prompt += `Website: ${userData.website}\n`;
-  if (userData.linkedin) prompt += `LinkedIn: ${userData.linkedin}\n`;
-  if (userData.github) prompt += `GitHub: ${userData.github}\n`;
-  
-  prompt += '\nPROFESSIONAL SUMMARY:\n';
-  prompt += userData.summary + '\n';
-  
-  prompt += '\nWORK EXPERIENCE:\n';
-  if (hasExperience) {
-    userData.experience.forEach(exp => {
-      prompt += `Position: ${exp.position}\n`;
-      prompt += `Company: ${exp.company}\n`;
-      prompt += `Duration: ${exp.startDate} - ${exp.endDate}\n`;
-      if (exp.description) prompt += `Description: ${exp.description}\n`;
-      prompt += '\n';
-    });
-  } else {
-    prompt += `IF No experience provided. Please generate 2-3 relevant work experiences for a ${jobTitle} role`;
-    if (targetIndustry) prompt += ` in the ${targetIndustry} industry`;
-    prompt += `. Make the experiences realistic, impressive, and include quantifiable achievements. Ensure job titles, company names, and dates are appropriate.\n`;
-  }
-  
-  prompt += '\nEDUCATION:\n';
-  if (hasEducation) {
-    userData.education.forEach(edu => {
-      prompt += `Degree: ${edu.degree} in ${edu.field}\n`;
-      prompt += `Institution: ${edu.institution}\n`;
-      prompt += `Duration: ${edu.startDate} - ${edu.endDate}\n`;
-      if (edu.description) prompt += `Description: ${edu.description}\n`;
-      prompt += '\n';
-    });
-  } else {
-    prompt += `No education provided. Please generate an appropriate educational background for a ${jobTitle} role`;
-    if (targetIndustry) prompt += ` in the ${targetIndustry} industry`;
-    prompt += `. Include relevant degree, field of study, institution, and dates.\n`;
-  }
-  
-  prompt += '\nSKILLS:\n';
-  if (hasSkills) {
-    prompt += userData.skills.join(', ') + '\n';
-  } else {
-    prompt += `No skills provided. Please generate 8-12 relevant technical and soft skills for a ${jobTitle} role`;
-    if (targetIndustry) prompt += ` in the ${targetIndustry} industry`;
-    prompt += `. Include a mix of hard and soft skills that would impress recruiters and pass ATS systems.\n`;
-  }
-  
-  if (hasCertifications) {
-    prompt += '\nCERTIFICATIONS:\n';
-    userData.certifications.forEach(cert => {
-      prompt += `${cert.name} from ${cert.issuer} (${new Date(cert.date).getFullYear()})\n`;
-    });
-  } else if (targetIndustry || jobTitle) {
-    prompt += '\nCERTIFICATIONS:\n';
-    prompt += `No certifications provided. If appropriate for a ${jobTitle} role`;
-    if (targetIndustry) prompt += ` in the ${targetIndustry} industry`;
-    prompt += `, please include 1-2 relevant industry certifications.\n`;
-  }
-  
-  if (hasAchievements) {
-    prompt += '\nACHIEVEMENTS:\n';
-    userData.achievements.forEach(achievement => {
-      prompt += `- ${achievement}\n`;
-    });
-  }
-  
-  prompt += `\nATS OPTIMIZATION:
-1. Include job-specific keywords for ${jobTitle} positions
-2. Use industry-standard section headings and formatting
-3. Avoid tables, images, headers, footers, or complex layouts
-4. Include relevant ${targetIndustry || "industry"} terminology
-5. Use measurable achievements and quantified results`;
-  
-  prompt += `\n\nHTML FORMATTING INSTRUCTIONS:
-1. Create clean, semantic HTML with inline CSS only
-2. Use a professional single-column layout optimized for ATS systems
-3. Use a modern, professional color scheme with subtle accents (preferably blue/navy/gray tones)
-4. Ensure proper spacing and typography for readability
-5. Use appropriate heading hierarchy (h1, h2, h3)
-6. Create a balanced design with proper visual hierarchy
-7. Include only the HTML content for the resume (no <html>, <head> or <doctype> tags)
-8. Start the HTML with a single root <div> element containing the entire resume
-9. Use bullet points for listing experiences, skills, and achievements
-10. Format dates, job titles, and company names consistently
-11. If creating experiences from scratch, include realistic metrics and achievements with numbers
-
-RESPONSE FORMAT: Respond with ONLY the HTML resume content, nothing else - no explanations, no markdown formatting, just the raw HTML.  And if you feel that any section have have not good discribtion feel free to improve the content of that section and give a best of the resume for the same post and if there no complete information according to job position feel free to add them and make resume more attractive me qualification and experience feel free to update the user data according to the requirement of the job and create a best resume for the user if there is no much content in user data feel free to add more and give complete and atttractive resume`;
-
-  return prompt;
-}
-
 function fixHtmlIssues(htmlContent) {
   htmlContent = htmlContent.replace(/^[\s\S]*?(<div[\s\S]*<\/div>)[\s\S]*$/, '$1');
  
@@ -591,8 +890,8 @@ function fixHtmlIssues(htmlContent) {
   });
   
   htmlContent = htmlContent
-    .replace(/&(?!amp;|lt;|gt;|quot;|apos;|nbsp;|copy;|reg;|#\d+;)/g, '&amp;') 
-    .replace(/<\s*script/gi, '&lt;script'); 
+    .replace(/&(?!amp;|lt;|gt;|quot;|apos;|nbsp;|copy;|reg;|#\d+;)/g, '&') 
+    .replace(/<\s*script/gi, '<script'); 
   
   htmlContent = htmlContent
     .replace(/position\s*:\s*fixed/gi, 'position: relative')
@@ -601,239 +900,6 @@ function fixHtmlIssues(htmlContent) {
     .replace(/height\s*:\s*\d+vh/gi, 'height: auto');
   
   return htmlContent;
-}
-
-function generateDefaultResumeContent(user, jobTitle, targetCompany, targetIndustry, hasProfile, hasExperience, hasEducation, hasSkills, template = 'professional') {
-  const defaultSkills = generateDefaultSkills(jobTitle, targetIndustry);
-  
-  const name = user.name || 'Your Name';
-  const email = user.email || 'your.email@example.com';
-  const phone = hasProfile.personalDetails?.phone || '(123) 456-7890';
-  const location = hasProfile.personalDetails?.address || 'City, State';
-  
-  const skillsList = hasSkills && hasProfile.skills.length > 0 
-    ? hasProfile.skills 
-    : defaultSkills;
-  
-  const experiences = hasExperience && hasProfile.experience && hasProfile.experience.length > 0
-    ? hasProfile.experience.map(exp => ({
-        title: exp.position,
-        company: exp.company,
-        startDate: new Date(exp.startDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}),
-        endDate: exp.endDate ? new Date(exp.endDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}) : 'Present',
-        description: exp.description || generateResponsibilities(jobTitle).join(' ')
-      }))
-    : [
-        {
-          title: jobTitle,
-          company: generateCompanyName(jobTitle, targetIndustry),
-          startDate: 'Jan 2020',
-          endDate: 'Present',
-          description: generateResponsibilities(jobTitle).join(' ')
-        },
-        {
-          title: generateJuniorTitle(jobTitle),
-          company: generateCompanyName(jobTitle, targetIndustry, true),
-          startDate: 'Jun 2017',
-          endDate: 'Dec 2019',
-          description: [
-            generateRelevantTask(jobTitle, 0),
-            generateRelevantTask(jobTitle, 1),
-            generateRelevantTask(jobTitle, 2)
-          ].join(' ')
-        }
-      ];
-
-  const education = hasEducation && hasProfile.education && hasProfile.education.length > 0
-    ? hasProfile.education.map(edu => ({
-        degree: edu.degree,
-        field: edu.field,
-        institution: edu.institution,
-        startDate: new Date(edu.startDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}),
-        endDate: edu.endDate ? new Date(edu.endDate).toLocaleDateString('en-US', {year: 'numeric', month: 'short'}) : 'Present'
-      }))
-    : [
-        {
-          degree: generateDefaultDegree(jobTitle),
-          field: generateDefaultField(jobTitle),
-          institution: 'University of ' + (targetIndustry || 'Technology'),
-          startDate: 'Sep 2013',
-          endDate: 'May 2017'
-        }
-      ];
-
-  // Professional template (default)
-  if (template === 'professional' || !template) {
-    return `<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 30px;">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <h1 style="margin: 0; color: #333;">${name}</h1>
-        <p style="margin: 5px 0;">${email} | ${phone} | ${location}</p>
-          </div>
-      <div style="margin-bottom: 20px;">
-        <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Summary</h2>
-        <p>${generateDefaultSummary(name, jobTitle, targetCompany, targetIndustry, hasProfile)}</p>
-        </div>
-      <div style="margin-bottom: 20px;">
-        <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Experience</h2>
-        ${experiences.map(exp => `
-          <div style="margin-bottom: 15px;">
-            <h3 style="margin: 0; font-size: 16px;">${exp.title}</h3>
-            <p style="margin: 0; font-style: italic;">${exp.company} | ${exp.startDate} - ${exp.endDate}</p>
-            <ul>
-              ${exp.description.split('. ').filter(s => s.trim()).map(sentence => 
-                `<li>${sentence.trim() + (sentence.endsWith('.') ? '' : '.')}</li>`
-              ).join('')}
-            </ul>
-        </div>
-      `).join('')}
-    </div>
-      <div style="margin-bottom: 20px;">
-        <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Education</h2>
-        ${education.map(edu => `
-          <div>
-            <h3 style="margin: 0; font-size: 16px;">${edu.degree} in ${edu.field}</h3>
-            <p style="margin: 0; font-style: italic;">${edu.institution} | ${edu.startDate} - ${edu.endDate}</p>
-  </div>
-        `).join('')}
-      </div>
-      <div>
-        <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px;">Skills</h2>
-        <p>${skillsList.join(', ')}</p>
-      </div>
-    </div>`;
-  } 
-  // Creative template
-  else if (template === 'creative') {
-    return `<div style="font-family: 'Roboto', sans-serif; max-width: 800px; margin: 0 auto; padding: 30px;">
-      <div style="text-align: center; margin-bottom: 25px;">
-        <div style="width: 120px; height: 120px; border-radius: 50%; background-color: #9c27b0; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
-          <h1 style="margin: 0; color: white; font-size: 48px;">${name.charAt(0)}</h1>
-        </div>
-        <h1 style="margin: 0 0 10px; color: #9c27b0; font-size: 32px;">${name}</h1>
-        <p style="margin: 5px 0; font-size: 16px; color: #666;">${email} | ${phone} | ${location}</p>
-      </div>
-      <div style="margin-bottom: 20px; text-align: center;">
-        <p style="background-color: #f3e5f5; padding: 15px; border-radius: 8px; color: #555; font-style: italic;">
-          ${generateDefaultSummary(name, jobTitle, targetCompany, targetIndustry, hasProfile)}
-        </p>
-      </div>
-      <div style="margin-bottom: 25px;">
-        <h2 style="font-size: 22px; color: #9c27b0; border-bottom: 2px solid #9c27b0; padding-bottom: 5px; display: inline-block;">Experience</h2>
-        ${experiences.map(exp => `
-          <div style="margin-bottom: 15px; padding: 10px 0;">
-            <h3 style="margin: 0; font-size: 18px; color: #333;">${exp.title}</h3>
-            <p style="margin: 5px 0 10px; font-style: italic; color: #666;">${exp.company} | ${exp.startDate} - ${exp.endDate}</p>
-            <ul style="margin: 0; padding-left: 20px; color: #555;">
-              ${exp.description.split('. ').filter(s => s.trim()).map(sentence => 
-                `<li style="margin-bottom: 8px;">${sentence.trim() + (sentence.endsWith('.') ? '' : '.')}</li>`
-              ).join('')}
-      </ul>
-  </div>
-        `).join('')}
-</div>
-      <div style="margin-bottom: 25px;">
-        <h2 style="font-size: 22px; color: #9c27b0; border-bottom: 2px solid #9c27b0; padding-bottom: 5px; display: inline-block;">Education</h2>
-        ${education.map(edu => `
-          <div style="padding: 10px 0;">
-            <h3 style="margin: 0; font-size: 18px; color: #333;">${edu.degree} in ${edu.field}</h3>
-            <p style="margin: 5px 0; font-style: italic; color: #666;">${edu.institution} | ${edu.startDate} - ${edu.endDate}</p>
-      </div>
-        `).join('')}
-    </div>
-      <div style="margin-bottom: 25px;">
-        <h2 style="font-size: 22px; color: #9c27b0; border-bottom: 2px solid #9c27b0; padding-bottom: 5px; display: inline-block;">Skills</h2>
-        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px;">
-          ${skillsList.map(skill => 
-            `<span style="background-color: #f3e5f5; padding: 8px 15px; border-radius: 20px; color: #9c27b0; font-weight: 500;">${skill}</span>`
-          ).join('')}
-      </div>
-    </div>
-    </div>`;
-  }
-  // Modern template
-  else if (template === 'modern') {
-    return `<div style="font-family: 'Arial', sans-serif; max-width: 800px; margin: 0 auto; padding: 0;">
-      <table style="width: 100%; border-collapse: collapse; border: none;">
-        <tr>
-          <td style="width: 30%; background-color: #1976d2; color: white; padding: 30px; vertical-align: top;">
-            <h1 style="margin: 0 0 20px; font-size: 28px;">${name}</h1>
-            <p style="margin: 0 0 5px; font-size: 14px;">Email: ${email}</p>
-            <p style="margin: 0 0 5px; font-size: 14px;">Phone: ${phone}</p>
-            <p style="margin: 0 0 25px; font-size: 14px;">Location: ${location}</p>
-            
-            <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Skills</h3>
-            <ul style="margin: 0; padding-left: 20px;">
-              ${skillsList.map(skill => 
-                `<li style="margin-bottom: 8px;">${skill}</li>`
-              ).join('')}
-            </ul>
-            
-            <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Education</h3>
-            ${education.map(edu => `
-              <h4 style="margin: 0; font-size: 16px;">${edu.degree} in ${edu.field}</h4>
-              <p style="margin: 5px 0 0; font-style: italic; font-size: 14px;">${edu.institution}</p>
-              <p style="margin: 5px 0 15px; font-size: 14px;">${edu.startDate} - ${edu.endDate}</p>
-            `).join('')}
-          </td>
-          
-          <td style="width: 70%; padding: 30px; vertical-align: top;">
-            <h2 style="font-size: 20px; color: #1976d2; margin: 0 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Professional Summary</h2>
-            <p style="color: #444; line-height: 1.6;">${generateDefaultSummary(name, jobTitle, targetCompany, targetIndustry, hasProfile)}</p>
-            
-            <h2 style="font-size: 20px; color: #1976d2; margin: 30px 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Work Experience</h2>
-            
-            ${experiences.map(exp => `
-              <div style="margin-bottom: 20px;">
-                <h3 style="margin: 0; font-size: 18px; color: #333;">${exp.title}</h3>
-                <p style="margin: 5px 0; font-weight: 500; color: #666;">${exp.company} | ${exp.startDate} - ${exp.endDate}</p>
-                <ul style="margin: 10px 0 0; padding-left: 20px; color: #444;">
-                  ${exp.description.split('. ').filter(s => s.trim()).map(sentence => 
-                    `<li style="margin-bottom: 8px;">${sentence.trim() + (sentence.endsWith('.') ? '' : '.')}</li>`
-                  ).join('')}
-                </ul>
-              </div>
-            `).join('')}
-          </td>
-        </tr>
-      </table>
-    </div>`;
-  }
-}
-
-function generateDefaultSkills(jobTitle, targetIndustry) {
-  const lowercaseTitle = jobTitle.toLowerCase();
-  const skills = [];
-  
-  // Generic professional skills
-  skills.push('Communication', 'Problem Solving', 'Project Management', 'Team Leadership');
-  
-  // Job-specific skills
-  if (lowercaseTitle.includes('software') || lowercaseTitle.includes('developer') || lowercaseTitle.includes('engineer')) {
-    skills.push('JavaScript', 'Python', 'React', 'Node.js', 'SQL', 'RESTful APIs', 'Git', 'Agile Methodologies');
-  } else if (lowercaseTitle.includes('data')) {
-    skills.push('SQL', 'Python', 'Data Analysis', 'Tableau', 'Machine Learning', 'Statistical Analysis', 'Power BI');
-  } else if (lowercaseTitle.includes('market')) {
-    skills.push('Digital Marketing', 'SEO', 'Content Strategy', 'Google Analytics', 'Social Media Marketing', 'Email Campaigns');
-  } else if (lowercaseTitle.includes('design')) {
-    skills.push('UI/UX Design', 'Adobe Creative Suite', 'Figma', 'Wireframing', 'User Research', 'Visual Design');
-  } else if (lowercaseTitle.includes('manager') || lowercaseTitle.includes('director')) {
-    skills.push('Strategic Planning', 'Team Leadership', 'Budget Management', 'Performance Analysis', 'Risk Management');
-  }
-  
-  // Industry-specific skills
-  if (targetIndustry) {
-    const lowercaseIndustry = targetIndustry.toLowerCase();
-    if (lowercaseIndustry.includes('health') || lowercaseIndustry.includes('medical')) {
-      skills.push('HIPAA Compliance', 'Electronic Medical Records');
-    } else if (lowercaseIndustry.includes('finance')) {
-      skills.push('Financial Analysis', 'Risk Assessment', 'Regulatory Compliance');
-    } else if (lowercaseIndustry.includes('retail')) {
-      skills.push('Inventory Management', 'Customer Experience', 'Sales Strategy');
-    }
-  }
-  
-  // Return 10 unique skills max
-  return [...new Set(skills)].slice(0, 10);
 }
 
 function generateResponsibilities(jobTitle) {
@@ -878,6 +944,79 @@ function generateResponsibilities(jobTitle) {
   }
   
   return responsibilities;
+}
+
+function generateCompanyName(jobTitle, targetIndustry, isJunior = false) {
+  const industryPrefix = targetIndustry ? targetIndustry.split(' ')[0] : 'Tech';
+  const suffixes = ['Solutions', 'Innovations', 'Systems', 'Group', 'Technologies'];
+  const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+  return isJunior ? `Emerging ${industryPrefix} ${suffix}` : `${industryPrefix} ${suffix}`;
+}
+
+function generateJuniorTitle(jobTitle) {
+  const lowercaseTitle = jobTitle.toLowerCase();
+  if (lowercaseTitle.includes('senior')) {
+    return jobTitle.replace(/senior/i, 'Junior');
+  }
+  return `Junior ${jobTitle}`;
+}
+
+function generateDefaultDegree(jobTitle) {
+  const lowercaseTitle = jobTitle.toLowerCase();
+  if (lowercaseTitle.includes('software') || lowercaseTitle.includes('developer') || lowercaseTitle.includes('engineer')) {
+    return 'Bachelor of Science';
+  } else if (lowercaseTitle.includes('data')) {
+    return 'Master of Science';
+  } else if (lowercaseTitle.includes('market')) {
+    return 'Bachelor of Business Administration';
+  } else {
+    return 'Bachelor of Arts';
+  }
+}
+
+function generateDefaultField(jobTitle) {
+  const lowercaseTitle = jobTitle.toLowerCase();
+  if (lowercaseTitle.includes('software') || lowercaseTitle.includes('developer') || lowercaseTitle.includes('engineer')) {
+    return 'Computer Science';
+  } else if (lowercaseTitle.includes('data')) {
+    return 'Data Science';
+  } else if (lowercaseTitle.includes('market')) {
+    return 'Marketing';
+  } else {
+    return 'Business Administration';
+  }
+}
+
+function generateRelevantTask(jobTitle, index) {
+  const lowercaseTitle = jobTitle.toLowerCase();
+  const tasks = {
+    'software': [
+      'Developed core features for a customer-facing application, improving user retention by 25%',
+      'Wrote unit tests that increased code coverage by 30%',
+      'Participated in code reviews to maintain high-quality standards'
+    ],
+    'data': [
+      'Built data pipelines that reduced processing time by 40%',
+      'Created visualizations that supported executive decision-making',
+      'Performed statistical analysis to identify key performance trends'
+    ],
+    'market': [
+      'Designed social media campaigns that boosted engagement by 50%',
+      'Conducted market research to inform product positioning',
+      'Managed email marketing campaigns with a 20% increase in open rates'
+    ],
+    'default': [
+      'Contributed to team projects that met all deadlines and KPIs',
+      'Prepared detailed reports to track project progress',
+      'Collaborated with stakeholders to gather requirements'
+    ]
+  };
+
+  const category = lowercaseTitle.includes('software') ? 'software' :
+                  lowercaseTitle.includes('data') ? 'data' :
+                  lowercaseTitle.includes('market') ? 'market' : 'default';
+  
+  return tasks[category][index] || tasks['default'][index];
 }
 
 export const POST = corsMiddleware(generateResumeHandler);

@@ -193,11 +193,11 @@ function Footer() {
             <Stack spacing={1.5}>
               <Box sx={{ display: 'flex', alignItems: 'center', color: 'grey.300' }}>
                 <EmailIcon sx={{ mr: 1.5, fontSize: 18, color: '#90caf9' }} />
-                <Typography variant="body2">support@resumeai.com</Typography>
+                <Typography variant="body2">Resumai@gamil.com</Typography>
               </Box>
               <Box sx={{ display: 'flex', alignItems: 'center', color: 'grey.300' }}>
                 <PhoneIcon sx={{ mr: 1.5, fontSize: 18, color: '#90caf9' }} />
-                <Typography variant="body2">+1 (123) 456-7890</Typography>
+                <Typography variant="body2">+91 9090909090</Typography>
               </Box>
             </Stack>
             
