@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-// import ResumeTemplates, { getTemplateHtml } from '../components/ResumeTemplates';
 import ShareEmailModal from '../components/ShareResume/ShareEmailModal';
 import GrammarAnalysisModal from '../components/GrammarAnalysisModal';
 import AtsAnalysisModal from '../components/AtsAnalysisModal';
@@ -75,26 +74,45 @@ function ResumeEditor() {
   const [showGrammarModal, setShowGrammarModal] = useState(false);
   const [editorWidth, setEditorWidth] = useState(75);
   const [isResizing, setIsResizing] = useState(false);
-
   const [showTemplates, setShowTemplates] = useState(id === 'new');
-  const [step, setStep] = useState(id === 'new' ? 1 : 2); // 1: Choose template, 2: Edit resume
+  const [step, setStep] = useState(id === 'new' ? 1 : 2);
   const [editorFailed, setEditorFailed] = useState(false);
   const [showShareEmailModal, setShowShareEmailModal] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [isAnalyzingATS, setIsAnalyzingATS] = useState(false);
   const [isCheckingGrammar, setIsCheckingGrammar] = useState(false);
-
   const [templateChanged, setTemplateChanged] = useState(false);
+  const [streamingContent, setStreamingContent] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
+
+  const contentTimeoutRef = useRef(null);
+
+const handleEditorChange = useCallback((newContent) => {
+  if (isStreaming) return;
+
+  if (contentTimeoutRef.current) {
+    clearTimeout(contentTimeoutRef.current);
+  }
+
+  contentTimeoutRef.current = setTimeout(() => {
+    setContent(newContent);
+    contentTimeoutRef.current = null;
+  }, 10000);
+}, [isStreaming]);
+
+useEffect(() => {
+  return () => {
+    if (contentTimeoutRef.current) {
+      clearTimeout(contentTimeoutRef.current);
+    }
+  };
+}, []);
 
   const handleInit = (evt, editor) => {
     editorRef.current = editor;
-    
-    // Initial content sync
     if (content) {
       editor.setContent(content);
     }
-    
-    // Set up a blur event listener instead of tracking every change
     editor.on('blur', () => {
       if (editor.getContent() !== content) {
         setContent(editor.getContent());
@@ -102,50 +120,36 @@ function ResumeEditor() {
     });
   };
 
-  // Update the content when template changes
   useEffect(() => {
-    if (editorRef.current && content && templateChanged) {
+    if (editorRef.current && content && (templateChanged || !isStreaming)) {
       editorRef.current.setContent(content);
-      // Reset the template changed flag after updating the editor
       setTemplateChanged(false);
     }
-  }, [content, templateChanged]);
+  }, [content, templateChanged, isStreaming]);
 
   useEffect(() => {
     if (id && id !== 'new') {
       fetchResume();
     } else if (id === 'new' && step === 2) {
-      // Initialize with template
       const userData = user ? {
         name: user.name,
         email: user.email,
-        // Add more user data here
       } : {};
-      
       setContent(getBasicTemplate(template, userData));
     }
   }, [id, step, template, user]);
 
-  // Add a template change effect to update content when template changes
   useEffect(() => {
-    // Only apply when editing a resume (not on initial load)
     if (content && step === 2 && template) {
-      // Don't regenerate for existing resumes immediately on load
       if (id !== 'new' && !templateChanged) {
         return;
       }
-      
-      // Extract user data from existing content if possible
       let userData = { name: user?.name || 'Your Name', email: user?.email || 'your.email@example.com' };
-      
       try {
-        // Try to extract name from the content
         const nameMatch = content.match(/<h1[^>]*>(.*?)<\/h1>/);
         if (nameMatch && nameMatch[1] && !nameMatch[1].includes('${name}')) {
           userData.name = nameMatch[1].trim();
         }
-        
-        // Try to extract email from the content
         const emailMatch = content.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/);
         if (emailMatch && emailMatch[1]) {
           userData.email = emailMatch[1].trim();
@@ -153,8 +157,6 @@ function ResumeEditor() {
       } catch (err) {
         console.log('Error extracting user data from content:', err);
       }
-      
-      // Regenerate the content with the new template
       setContent(getBasicTemplate(template, userData));
     }
   }, [template, content, user, id, step, templateChanged]);
@@ -164,14 +166,12 @@ function ResumeEditor() {
       setLoading(true);
       const response = await axios.get(`/api/resume/${id}`);
       const resume = response.data;
-      
       setTitle(resume.title);
       setContent(resume.content);
       setTemplate(resume.template || 'professional');
       setJobTitle(resume.jobTitle || '');
       setTargetCompany(resume.targetCompany || '');
       setTargetIndustry(resume.targetIndustry || '');
-      
       if (resume.metrics) {
         setAtsScore(resume.metrics.atsScore);
         setGrammarScore(resume.metrics.grammarScore);
@@ -188,14 +188,11 @@ function ResumeEditor() {
     try {
       setSaving(true);
       setError('');
-      
-      // Make sure we have the latest content from the editor
       let latestContent = content;
       if (editorRef.current) {
         latestContent = editorRef.current.getContent();
         setContent(latestContent);
       }
-      
       const resumeData = {
         title,
         content: latestContent,
@@ -204,19 +201,13 @@ function ResumeEditor() {
         targetCompany,
         targetIndustry
       };
-      
-      console.log('Saving resume with template:', template);
-      console.log('Resume content length:', latestContent.length);
-      
       let response;
-      
       if (id && id !== 'new') {
         response = await axios.put(`/api/resume/${id}`, resumeData);
       } else {
         response = await axios.post('/api/resume', resumeData);
         navigate(`/resume/${response.data._id}`);
       }
-      
       setMessage('Resume saved successfully!');
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
@@ -227,63 +218,65 @@ function ResumeEditor() {
     }
   };
 
+  const streamContent = (fullContent) => {
+    setIsStreaming(true);
+    let accumulatedContent = '';
+    const chars = fullContent.split('');
+    let currentIndex = 0;
+  
+    const interval = setInterval(() => {
+      if (currentIndex < chars.length) {
+        accumulatedContent += chars[currentIndex];
+        if (editorRef.current) {
+          editorRef.current.setContent(accumulatedContent);
+        }
+        currentIndex++;
+      } else {
+        clearInterval(interval);
+        setContent(fullContent);
+        setIsStreaming(false);
+        setMessage('AI-generated resume created!');
+        setTimeout(() => setMessage(''), 30);
+      }
+    }, 10);
+  };
+
   const generateAIResume = async () => {
     try {
       setIsGeneratingAI(true);
       setError('');
-      
-      // Validate required fields
       if (!jobTitle) {
         setError('Please enter a job title to generate an AI resume');
         setIsGeneratingAI(false);
         return;
       }
-      
-      // Get latest content from editor
       let latestContent = content;
       if (editorRef.current) {
         latestContent = editorRef.current.getContent();
         setContent(latestContent);
       }
-      
       try {
         const response = await axios.post('/api/ai/generate-resume', {
           jobTitle,
           targetCompany,
           targetIndustry,
           template,
-          currentContent: latestContent, // Send current editor content
-          additionalInstruction // Send additional instructions
+          currentContent: latestContent,
+          additionalInstruction
         });
-        
-        setContent(response.data.content);
-        if (editorRef.current) {
-          editorRef.current.setContent(response.data.content);
-        }
-        
-        setMessage('AI-generated resume created!');
-        setTimeout(() => setMessage(''), 3000);
+        streamContent(response.data.content);
       } catch (apiError) {
         console.error('API Error:', apiError);
-        
-        // If the error is because of missing profile data, generate a fallback resume
         if (apiError.response?.status === 400 && 
             apiError.response?.data?.message?.includes('profile data')) {
-          
           console.log('Generating fallback resume template');
-          // Generate a fallback resume with placeholder content based on the current template
           const userData = { name: user?.name || 'Your Name', email: user?.email || 'your.email@example.com' };
           const fallbackContent = getBasicTemplate(template, userData);
-          
-          setContent(fallbackContent);
-          if (editorRef.current) {
-            editorRef.current.setContent(fallbackContent);
-          }
-          
+          streamContent(fallbackContent);
           setMessage('Resume template created! Please update your profile for better AI generation.');
           setTimeout(() => setMessage(''), 5000);
         } else {
-          throw apiError; // Re-throw if it's a different error
+          throw apiError;
         }
       }
     } catch (err) {
@@ -298,11 +291,9 @@ function ResumeEditor() {
     try {
       setIsCheckingGrammar(true);
       setError('');
-      
       const response = await axios.post('/api/ai/check-grammar', {
         resumeId: id
       });
-      
       if (response.data.success) {
         const analysis = response.data.analysis;
         setGrammarScore(analysis.score);
@@ -323,12 +314,10 @@ function ResumeEditor() {
     try {
       setIsAnalyzingATS(true);
       setError('');
-      
       const response = await axios.post('/api/ai/analyze-ats', {
         resumeId: id,
         jobDescription: jobTitle ? `Job title: ${jobTitle}${targetIndustry ? `, Industry: ${targetIndustry}` : ''}` : undefined
       });
-      
       if (response.data.success) {
         const analysis = response.data.analysis;
         setAtsScore(analysis.score);
@@ -347,27 +336,19 @@ function ResumeEditor() {
 
   const handleTemplateSelect = (templateId) => {
     if (templateId === template) {
-      return; // Already selected
+      return;
     }
-    
     console.log('Selected template:', templateId);
     setTemplate(templateId);
     setTemplateChanged(true);
-    
-    // If we're in edit mode (step 2), immediately apply the template
     if (step === 2) {
-      // Extract user data from current content
       let userData = { name: user?.name || 'Your Name', email: user?.email || 'your.email@example.com' };
-      
       try {
-        // Try to extract name and email from current content
         const currentContent = editorRef.current ? editorRef.current.getContent() : content;
-        
         const nameMatch = currentContent.match(/<h1[^>]*>(.*?)<\/h1>/);
         if (nameMatch && nameMatch[1] && !nameMatch[1].includes('${name}')) {
           userData.name = nameMatch[1].trim();
         }
-        
         const emailMatch = currentContent.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9._-]+)/);
         if (emailMatch && emailMatch[1]) {
           userData.email = emailMatch[1].trim();
@@ -375,20 +356,12 @@ function ResumeEditor() {
       } catch (err) {
         console.log('Error extracting user data from content:', err);
       }
-      
-      // Generate new content with the selected template
       const newContent = getBasicTemplate(templateId, userData);
       setContent(newContent);
-      
-      // Update the editor content if available
       if (editorRef.current) {
         editorRef.current.setContent(newContent);
-        
-        // Notify the editor about the template change
         editorRef.current.dispatch('TemplateChange', { template: templateId });
       }
-      
-      // Show success message
       setMessage(`Template changed to ${templateId.charAt(0).toUpperCase() + templateId.slice(1)}`);
       setTimeout(() => setMessage(''), 3000);
     }
@@ -399,25 +372,20 @@ function ResumeEditor() {
     setShowTemplates(false);
   };
 
-  // Handle TinyMCE initialization error
   const handleEditorLoadError = () => {
     console.log('TinyMCE editor failed to load, falling back to textarea');
     setEditorFailed(true);
   };
-  
-  // Add this inside the Editor section
+
   useEffect(() => {
-    // Set a timeout to check if editor is working
     const timeoutId = setTimeout(() => {
       if (editorRef.current === null) {
         handleEditorLoadError();
       }
-    }, 5000); // 5 seconds should be enough time for TinyMCE to load
-    
+    }, 5000);
     return () => clearTimeout(timeoutId);
   }, []);
 
-  // Template generation function
   const getBasicTemplate = (template, userData) => {
     const name = userData?.name || 'Your Name';
     const email = userData?.email || 'your.email@example.com';
@@ -465,7 +433,6 @@ function ResumeEditor() {
         </div>
       </div>`;
     } else if (template === 'modern') {
-      // Fixed modern template layout to work with Word export
       return `<div style="font-family: 'Arial', sans-serif; max-width: 800px; margin: 0 auto; padding: 0;">
         <table style="width: 100%; border-collapse: collapse; border: none;">
           <tr>
@@ -474,7 +441,6 @@ function ResumeEditor() {
               <p style="margin: 0 0 5px; font-size: 14px;">Email: ${email}</p>
               <p style="margin: 0 0 5px; font-size: 14px;">Phone: Your Phone</p>
               <p style="margin: 0 0 25px; font-size: 14px;">Location: Your Location</p>
-              
               <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Skills</h3>
               <ul style="margin: 0; padding-left: 20px;">
                 <li style="margin-bottom: 8px;">Skill 1</li>
@@ -483,19 +449,15 @@ function ResumeEditor() {
                 <li style="margin-bottom: 8px;">Skill 4</li>
                 <li style="margin-bottom: 8px;">Skill 5</li>
               </ul>
-              
               <h3 style="margin: 30px 0 15px; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">Education</h3>
               <h4 style="margin: 0; font-size: 16px;">Degree Name</h4>
               <p style="margin: 5px 0 0; font-style: italic; font-size: 14px;">University Name</p>
               <p style="margin: 5px 0 0; font-size: 14px;">Graduation Year</p>
             </td>
-            
             <td style="width: 70%; padding: 30px; vertical-align: top;">
               <h2 style="font-size: 20px; color: #1976d2; margin: 0 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Professional Summary</h2>
               <p style="color: #444; line-height: 1.6;">A dedicated professional with expertise in the industry. Committed to delivering high-quality results and driving innovation in all projects.</p>
-              
               <h2 style="font-size: 20px; color: #1976d2; margin: 30px 0 20px; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Work Experience</h2>
-              
               <div style="margin-bottom: 20px;">
                 <h3 style="margin: 0; font-size: 18px; color: #333;">Job Title</h3>
                 <p style="margin: 5px 0; font-weight: 500; color: #666;">Company Name | Date - Present</p>
@@ -509,7 +471,7 @@ function ResumeEditor() {
           </tr>
         </table>
       </div>`;
-    } else { // professional (default)
+    } else {
       return `<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 30px;">
         <div style="text-align: center; margin-bottom: 20px;">
           <h1 style="margin: 0; color: #333;">${name}</h1>
@@ -551,15 +513,11 @@ function ResumeEditor() {
       setTimeout(() => setError(''), 3000);
       return;
     }
-    
-    // Get latest content before opening the share modal
     let latestContent = content;
     if (editorRef.current) {
       latestContent = editorRef.current.getContent();
       setContent(latestContent);
     }
-    
-    // Open the share modal with current template and content
     setShowShareEmailModal(true);
   };
 
@@ -570,56 +528,32 @@ function ResumeEditor() {
       return;
     }
     try {
-      console.log('Downloading Word document for resume ID:', id, 'with template:', template);
-      
-      // Show loading indicator
       setMessage('Generating document...');
-      
-      // Make sure we have the latest content from the editor
       let latestContent = content;
       if (editorRef.current) {
         latestContent = editorRef.current.getContent();
         setContent(latestContent);
       }
-      
-      // Clean up content to ensure it works well with document conversion
-      // 1. Remove any <style> tags that might be causing issues
       let cleanedContent = latestContent.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
-      
-      // 2. Remove any CSS comments
       cleanedContent = cleanedContent.replace(/\/\*[\s\S]*?\*\//g, '');
-      
-      // 3. Ensure consistent font sizing by applying directly to elements instead of through CSS
       cleanedContent = cleanedContent.replace(/<([a-z][a-z0-9]*)[^>]*>/gi, (match, tag) => {
-        // Apply font size to all text elements
         const textElements = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span', 'div', 'li', 'td', 'th', 'a', 'strong', 'em', 'b', 'i', 'u', 'label', 'small'];
-        
         if (textElements.includes(tag.toLowerCase())) {
-          // If tag doesn't have a style attribute, add one with font-size
           if (!match.includes('style=')) {
             return match.replace(/>$/, ' style="font-size: 14px;">');
-          }
-          // If tag has a style attribute but no font-size, add font-size
-          else if (!match.includes('font-size:')) {
+          } else if (!match.includes('font-size:')) {
             return match.replace(/style="([^"]*)"/i, 'style="$1; font-size: 14px;"');
-          }
-          // If tag has a style attribute with font-size, normalize it
-          else {
+          } else {
             return match.replace(/font-size:\s*\d+(\.\d+)?(px|pt|em|rem|%)/gi, 'font-size: 14px');
           }
         }
-        
-        // Special handling for headers to maintain hierarchy but with consistent sizes
         if (tag.toLowerCase() === 'h1') {
           return match.replace(/font-size:[^;"}]*/gi, 'font-size: 18px').replace(/>$/, ' style="font-size: 18px;">');
         } else if (tag.toLowerCase() === 'h2') {
           return match.replace(/font-size:[^;"}]*/gi, 'font-size: 16px').replace(/>$/, ' style="font-size: 16px;">');
         }
-        
         return match;
       });
-      
-      // Send the cleaned content along with the request
       const response = await axios({
         method: 'post',
         url: `/api/resume/${id}/export`,
@@ -629,11 +563,11 @@ function ResumeEditor() {
           format: 'docx',
           title: title,
           options: {
-            fontSize: 14, // Explicitly set default font size
-            preserveTemplate: true, // Ensure template formatting is maintained
-            fontFamily: 'Arial', // Consistent font family
-            lineHeight: 1.5, // Proper line spacing for readability
-            convertTablesToStyles: true // For modern template with tables
+            fontSize: 14,
+            preserveTemplate: true,
+            fontFamily: 'Arial',
+            lineHeight: 1.5,
+            convertTablesToStyles: true
           }
         },
         responseType: 'blob',
@@ -642,22 +576,13 @@ function ResumeEditor() {
           'Accept': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
         }
       });
-      
-      // Clear the loading message
       setMessage('');
-      
       if (!response.data || response.data.size === 0) {
         throw new Error('No document data received');
       }
-      
-      console.log('Word document data received, size:', response.data.size);
-      
-      // Create a blob from the document data
       const blob = new Blob([response.data], { 
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
       });
-      
-      // Create a download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -665,29 +590,22 @@ function ResumeEditor() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      
-      // Clean up the URL
       window.URL.revokeObjectURL(url);
-      
-      // Show success message
       setMessage(`Resume downloaded successfully with ${template.charAt(0).toUpperCase() + template.slice(1)} template!`);
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
       console.error('Error downloading Word document:', err);
-      
       let errorMessage = 'Failed to download document. Please try again.';
       if (err.response && err.response.data && err.response.data.message) {
         errorMessage = err.response.data.message;
       } else if (err.message) {
         errorMessage = err.message;
       }
-      
       setError(errorMessage);
       setTimeout(() => setError(''), 5000);
     }
   };
 
-  // Add resize handler functions
   const handleResizeStart = (e) => {
     e.preventDefault();
     setIsResizing(true);
@@ -697,11 +615,8 @@ function ResumeEditor() {
 
   const handleResize = (e) => {
     if (isResizing) {
-      // Calculate percentage based on mouse position
       const containerWidth = document.getElementById('editor-container').offsetWidth;
       const newEditorWidth = (e.clientX / containerWidth) * 100;
-      
-      // Constrain width between 30% and 85%
       if (newEditorWidth >= 30 && newEditorWidth <= 85) {
         setEditorWidth(newEditorWidth);
       }
@@ -794,7 +709,6 @@ function ResumeEditor() {
       flexDirection: 'column',
       transition: isResizing ? 'none' : 'background-color 0.3s'
     }}>
-      {/* Render a guide during resize */}
       {isResizing && (
         <Box
           sx={{
@@ -932,7 +846,6 @@ function ResumeEditor() {
         </Toolbar>
       </AppBar>
       
-      {/* Template Selection Bar */}
       {step === 2 && (
         <Paper 
           elevation={2} 
@@ -964,7 +877,6 @@ function ResumeEditor() {
                 color="secondary"
                 onClick={() => setShowTemplates(!showTemplates)}
                 startIcon={showTemplates ? null : <DescriptionIcon />}
-                endIcon={showTemplates ? null : null}
                 sx={{ 
                   py: 1,
                   px: 2,
@@ -1004,7 +916,6 @@ function ResumeEditor() {
                 </Typography>
                 
                 <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-                  {/* Professional Template */}
                   <Paper
                     elevation={template === 'professional' ? 8 : 1}
                     onClick={() => handleTemplateSelect('professional')}
@@ -1071,7 +982,6 @@ function ResumeEditor() {
                     </Typography>
                   </Paper>
 
-                  {/* Creative Template */}
                   <Paper
                     elevation={template === 'creative' ? 8 : 1}
                     onClick={() => handleTemplateSelect('creative')}
@@ -1139,7 +1049,6 @@ function ResumeEditor() {
                     </Typography>
                   </Paper>
 
-                  {/* Modern Template */}
                   <Paper
                     elevation={template === 'modern' ? 8 : 1}
                     onClick={() => handleTemplateSelect('modern')}
@@ -1488,7 +1397,6 @@ function ResumeEditor() {
               position: 'relative'
             }}
           >
-            {/* Editor Section - dynamic width */}
             <Box sx={{ 
               width: `${editorWidth}%`, 
               position: 'relative'
@@ -1542,7 +1450,15 @@ function ResumeEditor() {
                   </Button>
                 </Box>
               ) : (
-                <Box sx={{ height: '100%', position: 'relative' }}>
+                <Box sx={{ 
+                  height: '100%', 
+                  position: 'relative',
+                  transition: isStreaming ? 'all 0.2s ease-in-out' : 'none',
+                  border: isStreaming ? '2px solid' : 'none',
+                  borderColor: isStreaming ? 'primary.main' : 'transparent',
+                  borderRadius: isStreaming ? 2 : 0,
+                  boxShadow: isStreaming ? '0 0 10px rgba(25, 118, 210, 0.3)' : 'none'
+                }}>
                   <Editor
                     apiKey="w9wb2nr9fpk741lb6kzvabnhlzj7aimkgqbt1jdvnwi9qgky"
                     init={{
@@ -1552,7 +1468,7 @@ function ResumeEditor() {
                       plugins: [
                         'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
                         'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
-                        'insertdatetime', 'media', 'table', 'code', 'help', 'wordcount'
+                        'insertdatetime', 'media', 'table', 'code', 'wordcount'
                       ],
                       toolbar: 'undo redo | formatselect | ' +
                         'bold italic backcolor | alignleft aligncenter ' +
@@ -1562,7 +1478,7 @@ function ResumeEditor() {
                         body {
                           font-family: Arial, sans-serif;
                           margin: 2px;
-                          max-width: 800px;
+                          max-width: 1200px;
                           padding: 20px 30px;
                           min-height: 500px;
                           max-height: calc(100vh - 180px);
@@ -1570,6 +1486,14 @@ function ResumeEditor() {
                           background-color: white;
                           box-shadow: 0 0 15px rgba(0,0,0,0.05);
                           border-radius: 8px;
+                          transition: opacity 0.3s ease-in-out;
+                        }
+                        .streaming {
+                          animation: fadeIn 0.5s ease-in-out;
+                        }
+                        @keyframes fadeIn {
+                          from { opacity: 0.7; transform: translateY(5px); }
+                          to { opacity: 1; transform: translateY(0); }
                         }
                         h1, h2, h3, h4, h5, h6 {
                           margin-top: 1.5em;
@@ -1590,7 +1514,6 @@ function ResumeEditor() {
                       `,
                       setup: function(editor) {
                         editor.on('init', function() {
-                          // Make the editor container more responsive
                           const container = editor.getContainer();
                           container.style.display = 'flex';
                           container.style.flexDirection = 'column';
@@ -1600,64 +1523,78 @@ function ResumeEditor() {
                           container.style.height = 'calc(100vh - 120px)';
                           container.style.maxHeight = 'calc(100vh - 120px)';
                           container.style.overflow = 'hidden';
-                          
-                          // Better styling for the iframe
                           const editorIframe = editor.getContentAreaContainer().querySelector('iframe');
                           if (editorIframe) {
                             editorIframe.style.backgroundColor = '#ffffff';
                             editorIframe.style.minHeight = '500px';
                             editorIframe.style.maxHeight = 'calc(100vh - 230px)';
                           }
-                          
-                          // Apply template class to the body
                           if (template) {
                             const body = editor.getBody();
                             body.classList.add(`template-${template}`);
                           }
                         });
-                        
-                        // Auto-resize handling with max height limit
                         editor.on('NodeChange SetContent KeyUp', function() {
                           const doc = editor.getDoc();
                           const body = doc.body;
-                          
-                          // Set scroll on the body instead of adjusting iframe height
                           body.style.maxHeight = 'calc(100vh - 230px)';
                           body.style.overflowY = 'auto';
-                          
-                          // Minimum height
                           const minHeight = 500;
                           const maxHeight = window.innerHeight - 230;
-                          
-                          // Apply height constraints to iframe if needed
                           const iframe = editor.getContentAreaContainer().querySelector('iframe');
                           if (iframe) {
                             iframe.style.height = `${Math.min(Math.max(body.scrollHeight, minHeight), maxHeight)}px`;
                           }
                         });
-                        
-                        // Listen for template changes
                         editor.on('TemplateChange', function(e) {
                           const body = editor.getBody();
-                          // Remove all template classes
                           body.classList.remove('template-professional', 'template-creative', 'template-modern');
-                          // Add new template class
                           body.classList.add(`template-${e.template}`);
                         });
                       }
                     }}
                     initialValue={content}
                     onInit={handleInit}
-                    onEditorChange={(content) => {
-                      setContent(content);
-                    }}
+                    onEditorChange={handleEditorChange}
+                    // onEditorChange={(content) => {
+                    //   if (!isStreaming) {
+                    //     setContent(content);
+                    //   }
+                    // }}
                     onLoadError={handleEditorLoadError}
                   />
+                  {isStreaming && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 10,
+                        right: 10,
+                        bgcolor: 'primary.main',
+                        color: 'white',
+                        px: 2,
+                        py: 0.5,
+                        borderRadius: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        animation: 'pulse 1.5s infinite',
+                        '@keyframes pulse': {
+                          '0%': { transform: 'scale(1)', opacity: 0.8 },
+                          '50%': { transform: 'scale(1.05)', opacity: 1 },
+                          '100%': { transform: 'scale(1)', opacity: 0.8 },
+                        },
+                      }}
+                    >
+                      <SmartToyIcon fontSize="small" />
+                      <Typography variant="caption" fontWeight="bold">
+                        Generating...
+                      </Typography>
+                    </Box>
+                  )}
                 </Box>
               )}
             </Box>
 
-            {/* Resizer */}
             <Box
               ref={resizeRef}
               sx={{
@@ -1706,7 +1643,6 @@ function ResumeEditor() {
               />
             </Box>
 
-            {/* AI Tools and Controls - dynamic width */}
             <Box 
               sx={{ 
                 width: `${100 - editorWidth}%`, 
@@ -1757,7 +1693,6 @@ function ResumeEditor() {
                 overflowY: 'auto',
                 height: '100%'
               }}>
-                {/* Input fields with reduced margins */}
                 <TextField
                   fullWidth
                   label="Resume Title"
@@ -1847,7 +1782,7 @@ function ResumeEditor() {
                   placeholder="E.g., Emphasize leadership skills, include specific certifications, or focus on technical expertise"
                 />
 
-  <Divider sx={{ my: 1 }} />
+                <Divider sx={{ my: 1 }} />
 
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                   AI Resume Generator
@@ -1859,7 +1794,7 @@ function ResumeEditor() {
                   color="primary"
                   startIcon={<SmartToyIcon />}
                   onClick={generateAIResume}
-                  disabled={isGeneratingAI}
+                  disabled={isGeneratingAI || isStreaming}
                   sx={{ 
                     py: 1.5,
                     background: 'linear-gradient(45deg, #1976d2, #9c27b0)',
@@ -1875,9 +1810,9 @@ function ResumeEditor() {
                     }
                   }}
                 >
-                  {isGeneratingAI ? (
+                  {isGeneratingAI || isStreaming? (
                     <>
-                      <CircularProgress size={24} sx={{ mr: 1, color: 'white' }} />
+                      <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
                       Generating...
                     </>
                   ) : (
@@ -1886,126 +1821,92 @@ function ResumeEditor() {
                 </Button>
 
                 <Divider sx={{ my: 1 }} />
-                
+
                 <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                  Resume Analysis
+                  Resume Analysis Tools
                 </Typography>
 
-                <Grid container spacing={2} sx={{ mb: 1 }}>
-                  <Grid item xs={6}>
-                    <Card variant="outlined" sx={{ 
-                      height: '100%',
-                      transition: 'all 0.3s',
-                      '&:hover': { boxShadow: 2 }
-                    }}>
-                      <CardContent sx={{ py: 1, px: 1.5, '&:last-child': { pb: 1 } }}>
-                        <Typography variant="body2" color="text.secondary">
-                          ATS Score
-                        </Typography>
-                        {atsScore ? (
-                          <>
-                            <Typography variant="h5" color="primary" sx={{ mt: 1 }}>
-                              {atsScore}%
-                            </Typography>
-                            <LinearProgress 
-                              variant="determinate" 
-                              value={atsScore} 
-                              sx={{ mt: 1, height: 6, borderRadius: 3 }} 
-                              color={atsScore > 70 ? "success" : atsScore > 40 ? "warning" : "error"}
-                            />
-                          </>
-                        ) : (
-                          <Typography variant="body2" sx={{ fontStyle: 'italic', mt: 1 }}>
-                            Not analyzed
-                          </Typography>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                  <Grid item xs={6}>
-                    <Card variant="outlined" sx={{ 
-                      height: '100%',
-                      transition: 'all 0.3s',
-                      '&:hover': { boxShadow: 2 }
-                    }}>
-                      <CardContent sx={{ py: 1, px: 1.5, '&:last-child': { pb: 1 } }}>
-                        <Typography variant="body2" color="text.secondary">
-                          Grammar Score
-                        </Typography>
-                        {grammarScore ? (
-                          <>
-                            <Typography variant="h5" color="primary" sx={{ mt: 1 }}>
-                              {grammarScore}%
-                            </Typography>
-                            <LinearProgress 
-                              variant="determinate" 
-                              value={grammarScore} 
-                              sx={{ mt: 1, height: 6, borderRadius: 3 }} 
-                              color={grammarScore > 70 ? "success" : grammarScore > 40 ? "warning" : "error"}
-                            />
-                          </>
-                        ) : (
-                          <Typography variant="body2" sx={{ fontStyle: 'italic', mt: 1 }}>
-                            Not analyzed
-                          </Typography>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                </Grid>
-                
                 <Button
                   fullWidth
-                  variant="outlined"
-                  startIcon={<AssessmentIcon />}
-                  onClick={analyzeATS}
-                  disabled={isAnalyzingATS}
-                  sx={{ 
-                    mb: 1,
-                    py: 1,
-                    borderWidth: '2px',
-                    transition: 'all 0.3s',
-                    '&:hover': {
-                      borderWidth: '2px',
-                      bgcolor: 'rgba(25, 118, 210, 0.04)',
-                      transform: 'translateY(-2px)'
-                    }
-                  }}
-                >
-                  {isAnalyzingATS ? (
-                    <>
-                      <CircularProgress size={20} color="primary" sx={{ mr: 1 }} />
-                      Analyzing...
-                    </>
-                  ) : 'Analyze ATS Score'}
-                </Button>
-                
-                <Button
-                  fullWidth
-                  variant="outlined"
+                  variant="contained"
+                  color="info"
                   startIcon={<SpellcheckIcon />}
                   onClick={checkGrammar}
-                  disabled={isCheckingGrammar}
+                  disabled={isCheckingGrammar || !id || id === 'new'}
                   sx={{ 
-                    mb: 1,
-                    py: 1,
-                    borderWidth: '2px',
+                    py: 1.5,
+                    background: 'linear-gradient(45deg, #0288d1, #4fc3f7)',
                     transition: 'all 0.3s',
                     '&:hover': {
-                      borderWidth: '2px',
-                      bgcolor: 'rgba(25, 118, 210, 0.04)',
+                      background: 'linear-gradient(45deg, #0277bd, #29b6f6)',
+                      boxShadow: 4,
                       transform: 'translateY(-2px)'
                     }
                   }}
                 >
                   {isCheckingGrammar ? (
                     <>
-                      <CircularProgress size={20} color="primary" sx={{ mr: 1 }} />
-                      Checking...
+                      <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                      Checking Grammar...
                     </>
-                  ) : 'Check Grammar'}
+                  ) : (
+                    `Check Grammar${grammarScore ? ` (${grammarScore}%)` : ''}`
+                  )}
                 </Button>
-                 
+
+                <Button
+                  fullWidth
+                  variant="contained"
+                  color="success"
+                  startIcon={<AssessmentIcon />}
+                  onClick={analyzeATS}
+                  disabled={isAnalyzingATS || !id || id === 'new'}
+                  sx={{ 
+                    py: 1.5,
+                    background: 'linear-gradient(45deg, #388e3c, #66bb6a)',
+                    transition: 'all 0.3s',
+                    '&:hover': {
+                      background: 'linear-gradient(45deg, #2e7d32, #4caf50)',
+                      boxShadow: 4,
+                      transform: 'translateY(-2px)'
+                    }
+                  }}
+                >
+                  {isAnalyzingATS ? (
+                    <>
+                      <CircularProgress size={20} color="inherit" sx={{ mr: 1 }} />
+                      Analyzing ATS...
+                    </>
+                  ) : (
+                    `Analyze ATS${atsScore ? ` (${atsScore}%)` : ''}`
+                  )}
+                </Button>
+
+                {(grammarScore || atsScore) && (
+                  <Card sx={{ mt: 2, bgcolor: 'grey.50', boxShadow: 1 }}>
+                    <CardContent sx={{ p: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                        Analysis Summary
+                      </Typography>
+                      {grammarScore && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                          <SpellcheckIcon color="info" sx={{ mr: 1, fontSize: 20 }} />
+                          <Typography variant="body2">
+                            Grammar Score: <strong>{grammarScore}%</strong>
+                          </Typography>
+                        </Box>
+                      )}
+                      {atsScore && (
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <AssessmentIcon color="success" sx={{ mr: 1, fontSize: 20 }} />
+                          <Typography variant="body2">
+                            ATS Score: <strong>{atsScore}%</strong>
+                          </Typography>
+                        </Box>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
               </Box>
             </Box>
           </Box>
@@ -2015,4 +1916,4 @@ function ResumeEditor() {
   );
 }
 
-export default ResumeEditor; 
+export default ResumeEditor;
